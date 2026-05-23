@@ -1,0 +1,69 @@
+<!-- Emotion analysis results — HTMX partial
+     Replaces #emotion-panel (outerHTML swap).
+     OOB swaps update the hidden emotion fields in the form. -->
+
+<div id="emotion-panel" class="space-y-4">
+  <div class="text-xs text-subtle uppercase tracking-widest">Emotion</div>
+
+  {% if empty %}
+  <p class="text-xs text-muted italic">Write something first, then click Analyze.</p>
+  {% else %}
+
+    {% if overall %}
+    <div class="p-3 rounded border border-border bg-panel">
+      <div class="text-xs text-muted mb-1">Overall</div>
+      <div class="text-sm text-primary font-light leading-snug">{{ overall }}</div>
+    </div>
+    {% endif %}
+
+    {% if vad and vad.A is defined %}
+    <div class="text-xs text-muted">
+      Voice — V:{{ "%.2f"|format(vad.V) }} A:{{ "%.2f"|format(vad.A) }} D:{{ "%.2f"|format(vad.D) }}
+    </div>
+    {% endif %}
+
+    <div class="space-y-3" id="emotion-results">
+      {% for para in paragraphs %}
+      {% if para.emotion_label %}
+      <div class="border-l-2 border-muted pl-2">
+        <div class="text-xs text-primary font-medium mb-0.5 capitalize">{{ para.emotion_label }}</div>
+        <div class="text-xs text-muted leading-tight">{{ para.text[:90] }}{% if para.text|length > 90 %}…{% endif %}</div>
+        {% if para.emotion_scores %}
+        <div class="mt-1.5 space-y-0.5">
+          {% for label, score in para.emotion_scores.items() | sort(attribute='1', reverse=true) %}
+          {% if score > 0.07 %}
+          <div class="flex items-center gap-1.5">
+            <span class="text-muted w-14 truncate text-xs">{{ label }}</span>
+            <div class="flex-1 h-0.5 bg-border rounded-full">
+              <div class="h-0.5 bg-subtle rounded-full transition-all" style="width:{{ (score * 100)|int }}%"></div>
+            </div>
+            <span class="text-muted w-5 text-right text-xs">{{ (score * 100)|int }}%</span>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="text-xs text-muted pt-1">
+      {% if engine == 'hf' %}HuggingFace distilroberta{% else %}keyword heuristic{% endif %}
+    </div>
+
+  {% endif %}
+</div>
+
+<!-- OOB: update hidden form fields so saved entry includes emotion data -->
+<input type="hidden"
+       id="paragraphs_json"
+       name="paragraphs_json"
+       value="{{ paragraphs | tojson | e }}"
+       hx-swap-oob="true">
+
+<input type="hidden"
+       id="emotion_label"
+       name="emotion_label"
+       value="{{ overall | e }}"
+       hx-swap-oob="true">

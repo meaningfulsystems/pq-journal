@@ -1,0 +1,33 @@
+/* PQ Journal — custom CSS (Tailwind handles most of it) */
+
+/* Smooth scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+/* Waveform canvas */
+#waveform { display: block; }
+
+/* Lock icon animation during search */
+@keyframes decrypt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.decrypt-animating { animation: decrypt-pulse 0.8s ease-in-out infinite; }
+
+/* Textarea: no browser outline */
+textarea:focus { outline: none; box-shadow: none; }
+input[type="text"]:focus { outline: none; }
+
+/* Entry body typography */
+.entry-body { font-size: 0.925rem; line-height: 1.8; color: rgba(255,255,255,0.85); }
+
+/* Recording active state */
+.recording-active #record-dot { background-color: #ef4444; animation: pulse 1s infinite; }
+.recording-active #record-label { color: #ef4444; }
+
+/* HTMX request indicator — hidden by default, shown while request is in flight */
+.htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+.htmx-request .htmx-indicator { opacity: 1; }
+.htmx-request.htmx-indicator { opacity: 1; }

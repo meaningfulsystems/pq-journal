@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}{{ entry.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <a href="/journal" class="text-xs text-subtle hover:text-primary transition-colors">← Journal</a>
+      <h1 class="text-2xl font-light mt-2">{{ entry.title }}</h1>
+      <div class="flex items-center gap-3 mt-2 flex-wrap">
+        <span class="text-xs text-muted">{{ entry.created[:10] }}</span>
+        {% if entry.word_count %}
+        <span class="text-xs text-muted">{{ entry.word_count }} words</span>
+        {% endif %}
+        {% if entry.overall_emotion %}
+        <span class="text-xs text-subtle italic">{{ entry.overall_emotion }}</span>
+        {% endif %}
+        {% for tag in entry.tags %}
+        <span class="text-xs px-1.5 py-0.5 rounded border border-muted text-muted">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="flex gap-2 shrink-0">
+      <a href="/journal/{{ entry.id }}/edit"
+         class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">
+        Edit
+      </a>
+      <a href="/journal/{{ entry.id }}/export?format=md"
+         class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">
+        MD
+      </a>
+      <a href="/journal/{{ entry.id }}/export?format=pdf"
+         class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">
+        PDF
+      </a>
+    </div>
+  </div>
+
+  <hr class="border-border mb-6">
+
+  <!-- Entry body / paragraphs -->
+  {% if entry.paragraphs %}
+    <div class="space-y-6">
+      {% for para in entry.paragraphs %}
+      <div class="group">
+        <p class="text-sm leading-relaxed text-primary/90">{{ para.text }}</p>
+        {% if para.emotion_label %}
+        <p class="mt-1 text-xs text-subtle italic">{{ para.emotion_label }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  {% elif entry.body %}
+    <div class="prose prose-invert max-w-none">
+      <p class="text-sm leading-relaxed text-primary/90 whitespace-pre-wrap">{{ entry.body }}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

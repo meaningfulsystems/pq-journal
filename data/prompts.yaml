@@ -1,0 +1,89 @@
+---
+# PQ Journal — Reflective Prompts (Logotherapy-based)
+# Edit this file to add, remove, or modify prompts.
+# Categories: meaning, responsibility, growth, suffering, relationship, future, gratitude
+
+prompts:
+  - category: meaning
+    text: "What does this experience ask of you?"
+
+  - category: meaning
+    text: "Where is the meaning in what you are describing right now?"
+
+  - category: meaning
+    text: "If this moment had a message for you, what would it say?"
+
+  - category: meaning
+    text: "What would it mean to find purpose in this difficulty?"
+
+  - category: meaning
+    text: "What are you being called toward by this situation?"
+
+  - category: responsibility
+    text: "What are you most responsible for right now?"
+
+  - category: responsibility
+    text: "What would the version of yourself you are becoming do with this?"
+
+  - category: responsibility
+    text: "What choice are you making right now, even by not choosing?"
+
+  - category: responsibility
+    text: "Who or what is counting on you to move through this well?"
+
+  - category: suffering
+    text: "If this difficulty were unavoidable, what could you learn from enduring it?"
+
+  - category: suffering
+    text: "What are you tolerating that you have not yet named?"
+
+  - category: suffering
+    text: "What is the pain here trying to protect?"
+
+  - category: suffering
+    text: "Can you find something — however small — that gives this suffering meaning?"
+
+  - category: growth
+    text: "How is this situation changing you?"
+
+  - category: growth
+    text: "What have you learned about yourself in the last few months that surprised you?"
+
+  - category: growth
+    text: "Where are you growing even when you cannot feel it?"
+
+  - category: growth
+    text: "What would you tell someone going through exactly what you are going through?"
+
+  - category: relationship
+    text: "Who are you writing this for, even if only for yourself?"
+
+  - category: relationship
+    text: "What would the people who love you most want you to understand right now?"
+
+  - category: relationship
+    text: "Where are you giving your energy, and where is it actually going?"
+
+  - category: future
+    text: "Imagine yourself five years from now reading this entry. What do you hope you did?"
+
+  - category: future
+    text: "What are you building, even if slowly?"
+
+  - category: future
+    text: "What is the one thing you keep postponing that you already know matters?"
+
+  - category: gratitude
+    text: "What is working that you have not acknowledged?"
+
+  - category: gratitude
+    text: "What small thing today reminded you that life has texture?"
+
+  - category: open
+    text: "What do you most need to say right now that you have not said?"
+
+  - category: open
+    text: "What is true today that was not true a year ago?"
+
+  - category: open
+    text: "What question are you living with that has no answer yet?"

@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}Journal{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-light">Journal Entries</h1>
+  <a href="/journal/new"
+     class="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-100 transition-colors">
+    + New Entry
+  </a>
+</div>
+
+<!-- Search bar -->
+<div class="mb-6">
+  <div class="relative">
+    <input type="text" id="search-input"
+           placeholder="Search entries... (decrypts in browser)"
+           class="w-full bg-panel border border-border rounded px-4 py-2.5 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors pr-24">
+    <button onclick="startSearch()"
+            class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs bg-white text-black rounded hover:bg-gray-100 transition-colors">
+      Search
+    </button>
+  </div>
+  <!-- Search progress -->
+  <div id="search-progress" class="hidden mt-2 flex items-center gap-3 text-xs text-subtle">
+    <div class="flex items-center gap-1.5">
+      <span id="lock-icon" class="animate-pulse-slow">🔓</span>
+      <span id="progress-text">Decrypting entries...</span>
+    </div>
+    <div class="flex-1 bg-border rounded-full h-1">
+      <div id="progress-bar" class="bg-white h-1 rounded-full transition-all duration-200" style="width:0%"></div>
+    </div>
+    <button onclick="cancelSearch()" class="text-muted hover:text-primary">✕</button>
+  </div>
+</div>
+
+<!-- Entry list -->
+<div id="entry-list" class="space-y-2">
+  {% if entries %}
+    {% for entry in entries %}
+    {% include "components/entry_card.html" %}
+    {% endfor %}
+  {% else %}
+  <div class="text-center py-20 text-subtle">
+    <p class="text-lg mb-2">No entries yet</p>
+    <p class="text-sm text-muted">
+      <a href="/journal/new" class="hover:text-primary transition-colors">Create your first entry</a>
+    </p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Search results container (hidden by default) -->
+<div id="search-results" class="hidden mt-4 space-y-2">
+  <div class="text-xs text-subtle mb-2" id="search-results-header"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/search.js"></script>
+{% endblock %}

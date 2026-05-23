@@ -1,0 +1,17 @@
+# Transcription — choose one or install both (faster-whisper preferred)
+faster-whisper>=1.0
+vosk>=0.3.45
+
+# Text emotion classification
+transformers>=4.40
+torch>=2.2
+
+# Facial emotion (heavy — ~500MB models downloaded on first use)
+# py-feat requires torch, which is also listed above
+feat>=0.6
+
+# PDF export
+weasyprint>=62
+
+# Optional audio utilities
+sounddevice>=0.4

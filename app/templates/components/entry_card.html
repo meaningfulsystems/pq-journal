@@ -1,0 +1,38 @@
+<div class="group px-4 py-3 rounded border border-border hover:border-muted bg-panel hover:bg-white/[0.02] transition-all"
+     id="entry-{{ entry.id }}">
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex-1 min-w-0">
+      <a href="/journal/{{ entry.id }}"
+         class="block text-sm font-medium text-primary hover:text-white transition-colors truncate">
+        {{ entry.title }}
+      </a>
+      <div class="flex items-center gap-3 mt-1 flex-wrap">
+        <span class="text-xs text-muted">
+          {{ entry.created_at[:10] if entry.created_at else '' }}
+        </span>
+        {% if entry.word_count %}
+        <span class="text-xs text-muted">{{ entry.word_count }} words</span>
+        {% endif %}
+        {% if entry.emotion_label %}
+        <span class="text-xs text-subtle italic">{{ entry.emotion_label }}</span>
+        {% endif %}
+        {% for tag in entry.tags %}
+        <span class="text-xs px-1.5 py-0.5 rounded border border-muted text-muted">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+      <a href="/journal/{{ entry.id }}/edit"
+         class="px-2 py-1 text-xs text-subtle hover:text-primary transition-colors rounded hover:bg-white/5">
+        Edit
+      </a>
+      <button hx-delete="/journal/{{ entry.id }}"
+              hx-confirm="Delete this entry? This cannot be undone."
+              hx-target="#entry-{{ entry.id }}"
+              hx-swap="outerHTML"
+              class="px-2 py-1 text-xs text-muted hover:text-red-400 transition-colors rounded hover:bg-white/5">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>

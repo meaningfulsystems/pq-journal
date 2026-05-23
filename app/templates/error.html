@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}Error{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-20 text-center">
+  <p class="text-4xl mb-4 text-muted">⚠</p>
+  <h1 class="text-xl font-light mb-2">Something went wrong</h1>
+  <p class="text-sm text-subtle mb-6">{{ message }}</p>
+  <a href="/journal" class="text-xs text-subtle hover:text-primary transition-colors">← Back to journal</a>
+</div>
+{% endblock %}

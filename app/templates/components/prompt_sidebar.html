@@ -1,0 +1,19 @@
+{% if prompt %}
+<div class="border border-border rounded-lg p-4 bg-panel">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-xs text-muted uppercase tracking-widest">Reflect</span>
+    <button hx-get="/journal/prompts/random"
+            hx-target="#prompt-container"
+            hx-swap="innerHTML"
+            class="text-xs text-muted hover:text-subtle transition-colors">
+      Next ↻
+    </button>
+  </div>
+  <p class="text-sm text-subtle leading-relaxed">{{ prompt.text }}</p>
+  {% if prompt.category %}
+  <span class="mt-2 inline-block text-xs text-muted px-1.5 py-0.5 rounded border border-border">
+    {{ prompt.category }}
+  </span>
+  {% endif %}
+</div>
+{% endif %}

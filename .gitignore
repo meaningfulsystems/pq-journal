@@ -1,0 +1,67 @@
+# ── Secrets & user config ────────────────────────────────────────────────────
+.env
+settings.yaml          # user-specific; see settings.yaml.example
+
+# ── Journal data (never commit entries or keys) ───────────────────────────────
+MeaningfulJournal/
+*.pqj                  # encrypted journal entry files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.db/
+
+# Key files (should live on USB, never in the repo)
+ml_kem.pub
+ml_kem.priv
+ml_dsa.pub
+ml_dsa.priv
+key.json
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Model weights (large binary files — download separately) ─────────────────
+*.pth
+*.pt
+*.bin
+*.gguf
+*.ggml
+
+# ── Editor & OS ──────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# ── Claude Code session files ─────────────────────────────────────────────────
+.claude/
+
+# ── Temporary / test output ───────────────────────────────────────────────────
+*.log
+tmp/
+temp/

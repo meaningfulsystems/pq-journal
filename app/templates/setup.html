@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+{% block title %}Setup{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto mt-12">
+  <div class="text-center mb-8">
+    <h1 class="text-2xl font-light tracking-wide">First Time Setup</h1>
+    <p class="text-sm text-subtle mt-1">Generate your post-quantum encryption keys</p>
+  </div>
+
+  {% if result %}
+  <!-- Success state -->
+  <div class="mb-6 px-5 py-4 rounded border border-green-800 bg-green-950/50 text-sm space-y-2">
+    <p class="text-green-300 font-medium">✓ Keys generated successfully</p>
+    <p class="text-green-400/80 text-xs">Algorithm: ML-KEM-1024 + X25519</p>
+    <p class="text-green-400/80 text-xs font-mono">
+      KEM fingerprint: {{ result.kem_fingerprint }}
+    </p>
+    <p class="text-green-400/80 text-xs font-mono">
+      X25519 fingerprint: {{ result.x25519_fingerprint }}
+    </p>
+  </div>
+  <a href="/unlock"
+     class="block w-full py-2.5 bg-white text-black rounded font-medium text-sm text-center hover:bg-gray-100 transition-colors">
+    Go to Unlock
+  </a>
+
+  {% else %}
+
+  {% if error %}
+  <div class="mb-4 px-4 py-3 rounded border border-red-800 bg-red-950 text-red-300 text-sm">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <div class="mb-6 px-4 py-3 rounded border border-border bg-panel text-sm text-subtle space-y-1">
+    <p class="font-medium text-primary">Before you begin:</p>
+    <p>Store your keys in a <strong class="text-primary">separate location</strong> from your journal — a USB drive, encrypted folder, or network share.</p>
+    <p>Your journal entries cannot be decrypted without these keys + passphrase.</p>
+  </div>
+
+  <form method="post" action="/setup/generate" class="space-y-5">
+    <!-- Key directory -->
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Key Directory</label>
+
+      {% if drives %}
+      <div class="mb-2 flex flex-wrap gap-2">
+        {% for drive in drives %}
+        <button type="button"
+                onclick="document.getElementById('key_dir').value='{{ drive.mountpoint }}/meaningful-journal-keys'"
+                class="text-xs px-2 py-1 rounded border border-muted text-subtle hover:border-subtle hover:text-primary transition-colors">
+          {{ drive.device }} (USB)
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="flex gap-2">
+        <input type="text" id="key_dir" name="key_dir"
+               placeholder="/path/to/key-directory"
+               class="flex-1 bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+               required>
+        <button type="button"
+                onclick="openFileBrowser()"
+                class="px-3 py-2 border border-border rounded text-xs text-subtle hover:border-subtle hover:text-primary transition-colors">
+          Browse
+        </button>
+      </div>
+      <p class="text-xs text-muted mt-1">Directory will be created if it doesn't exist</p>
+    </div>
+
+    <!-- Passphrase -->
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Passphrase</label>
+      <input type="password" name="passphrase"
+             id="passphrase"
+             placeholder="Choose a strong passphrase (min 12 chars)"
+             autocomplete="new-password"
+             class="w-full bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+             required minlength="12">
+    </div>
+
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Confirm Passphrase</label>
+      <input type="password" name="passphrase_confirm"
+             placeholder="Repeat passphrase"
+             autocomplete="new-password"
+             class="w-full bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+             required>
+    </div>
+
+    <button type="submit"
+            class="w-full py-2.5 bg-white text-black rounded font-medium text-sm hover:bg-gray-100 transition-colors">
+      Generate Keys
+    </button>
+  </form>
+
+  <p class="mt-6 text-center text-xs text-muted">
+    Already have keys? <a href="/unlock" class="text-subtle hover:text-primary transition-colors">Unlock</a>
+  </p>
+  {% endif %}
+</div>
+
+<!-- File Browser Modal (same as unlock.html) -->
+<div id="file-browser-modal"
+     class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-panel border border-border rounded-lg w-full max-w-xl max-h-[70vh] flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+      <span class="text-sm font-medium">Select Key Directory</span>
+      <button onclick="closeFileBrowser()" class="text-subtle hover:text-primary text-lg leading-none">×</button>
+    </div>
+    <div id="browser-path" class="px-4 py-2 text-xs text-subtle font-mono border-b border-border truncate"></div>
+    <div id="browser-contents" class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5"></div>
+    <div class="px-4 py-3 border-t border-border flex justify-between items-center">
+      <span class="text-xs text-subtle" id="browser-selected">No directory selected</span>
+      <div class="flex gap-2">
+        <button onclick="closeFileBrowser()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">Cancel</button>
+        <button onclick="selectCurrentDir()" class="px-3 py-1.5 text-xs bg-white text-black rounded hover:bg-gray-100 transition-colors">Select</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentBrowserPath = '';
+async function openFileBrowser() {
+  document.getElementById('file-browser-modal').classList.remove('hidden');
+  const res = await fetch('/api/home');
+  const data = await res.json();
+  await browseTo(data.path);
+}
+function closeFileBrowser() {
+  document.getElementById('file-browser-modal').classList.add('hidden');
+}
+function selectCurrentDir() {
+  document.getElementById('key_dir').value = currentBrowserPath + '/meaningful-journal-keys';
+  closeFileBrowser();
+}
+async function browseTo(path) {
+  currentBrowserPath = path;
+  const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
+  const data = await res.json();
+  document.getElementById('browser-path').textContent = data.current;
+  document.getElementById('browser-selected').textContent = data.current;
+  const container = document.getElementById('browser-contents');
+  container.innerHTML = '';
+  if (data.error) { container.innerHTML = `<p class="text-red-400 text-xs px-2">${data.error}</p>`; return; }
+  if (data.parent) {
+    const el = document.createElement('button');
+    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-subtle hover:bg-white/5 transition-colors flex items-center gap-2';
+    el.innerHTML = '<span class="text-muted">↑</span> ..';
+    el.onclick = () => browseTo(data.parent);
+    container.appendChild(el);
+  }
+  for (const dir of data.dirs) {
+    const el = document.createElement('button');
+    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-primary hover:bg-white/5 transition-colors flex items-center gap-2';
+    el.innerHTML = `<span class="text-subtle">▶</span> ${dir.name}/`;
+    el.onclick = () => browseTo(dir.path);
+    container.appendChild(el);
+  }
+}
+</script>
+{% endblock %}

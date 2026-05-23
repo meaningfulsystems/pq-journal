@@ -1,0 +1,22 @@
+fastapi>=0.111,<0.120
+uvicorn[standard]>=0.29
+starlette>=0.41,<0.50      # pin: starlette 1.x breaks Jinja2 LRUCache on Python 3.14
+jinja2>=3.1
+python-multipart>=0.0.9
+sqlalchemy>=2.0
+aiosqlite>=0.20
+# PQC: liboqs-python requires liboqs C shared library.
+# Install the C library first (see README.md), then: pip install liboqs-python
+# Linux:   sudo apt install cmake && pip install liboqs-python
+# macOS:   brew install liboqs && pip install liboqs-python
+# Windows: see README.md for Visual Studio Build Tools path
+liboqs-python>=0.15.0
+cryptography>=42
+psutil>=5.9
+itsdangerous>=2.1
+pydantic-settings>=2.2
+pyyaml>=6.0
+numpy>=1.26
+sse-starlette>=2.1,<3.0    # pin: 3.x requires starlette>=0.49
+soundfile>=0.12
+httpx>=0.27

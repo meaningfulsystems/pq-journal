@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}{{ entry.title if entry else 'New Entry' }}{% endblock %}
+
+{% block content %}
+<div class="flex gap-6">
+  <!-- Main editor -->
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center justify-between mb-5">
+      <a href="/journal" class="text-xs text-subtle hover:text-primary transition-colors">← Journal</a>
+      {% if entry %}
+      <span class="text-xs text-muted">Last edited {{ entry.modified[:10] }}</span>
+      {% endif %}
+    </div>
+
+    <form id="entry-form"
+          method="post"
+          {% if entry %}
+          hx-put="/journal/{{ entry.id }}"
+          {% else %}
+          hx-post="/journal"
+          {% endif %}
+          hx-target="body"
+          hx-push-url="true"
+          class="space-y-4">
+
+      <!-- Title -->
+      <input type="text" name="title"
+             value="{{ entry.title if entry else '' }}"
+             placeholder="Title"
+             class="w-full bg-transparent border-none outline-none text-2xl font-light text-primary placeholder-muted"
+             required>
+
+      <!-- Tags -->
+      <input type="text" name="tags"
+             value="{{ entry.tags | join(', ') if entry else '' }}"
+             placeholder="Tags (comma separated)"
+             class="w-full bg-transparent border-none outline-none text-xs text-subtle placeholder-muted">
+
+      <!-- Recording panel (Slice 2+) -->
+      {% include "components/recording_panel.html" %}
+
+      <!-- Body textarea -->
+      <textarea name="body" id="entry-body"
+                placeholder="Begin writing, or click Record to dictate..."
+                rows="20"
+                class="w-full bg-transparent border-none outline-none text-sm text-primary placeholder-muted resize-none leading-relaxed focus:outline-none"
+                >{{ entry.body if entry else '' }}</textarea>
+
+      <!-- Hidden fields for emotion data (updated by Analyze or recorder) -->
+      <input type="hidden" name="emotion_label" id="emotion_label" value="{{ entry.overall_emotion if entry else '' }}">
+      <input type="hidden" name="emotion_scores" id="emotion_scores" value="{{ entry.emotion_scores | tojson if entry and entry.emotion_scores else '{}' }}">
+      <input type="hidden" name="paragraphs_json" id="paragraphs_json" value="{{ entry.paragraphs | tojson if entry and entry.paragraphs else '[]' }}">
+
+      <!-- Hidden fields set by recorder.js -->
+      <input type="hidden" id="vad-summary" name="vad_summary" value="{}">
+      <input type="hidden" id="face-emotion" name="face_emotion" value="">
+
+      <div class="flex items-center justify-between pt-4 border-t border-border">
+        <div class="flex gap-2">
+          {% if entry %}
+          <a href="/journal/{{ entry.id }}/export?format=md"
+             class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">
+            Export MD
+          </a>
+          <a href="/journal/{{ entry.id }}/export?format=pdf"
+             class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">
+            Export PDF
+          </a>
+          {% endif %}
+        </div>
+        <button type="submit"
+                class="px-5 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-100 transition-colors">
+          Save Entry
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sidebar: emotion + prompt -->
+  <div class="w-64 shrink-0 space-y-4">
+
+    <!-- Analyze Emotion button -->
+    <div>
+      <button type="button"
+              hx-post="/emotion/analyze"
+              hx-include="#entry-body,#vad-summary,#face-emotion"
+              hx-target="#emotion-panel"
+              hx-swap="outerHTML"
+              hx-indicator="#emotion-spinner"
+              class="w-full px-3 py-2 text-xs border border-border rounded text-subtle hover:text-primary hover:border-muted transition-colors flex items-center justify-center gap-2">
+        <span>Analyze Emotion</span>
+        <span id="emotion-spinner" class="htmx-indicator text-muted">…</span>
+      </button>
+    </div>
+
+    <!-- Prompt sidebar -->
+    <div id="prompt-container">
+      {% include "components/prompt_sidebar.html" %}
+    </div>
+
+    <!-- Emotion panel (replaced by HTMX after Analyze) -->
+    <div id="emotion-panel" class="space-y-4 hidden">
+      <div class="text-xs text-subtle uppercase tracking-widest">Emotion</div>
+      <div id="emotion-results" class="space-y-2"></div>
+    </div>
+
+    {% if enable_webcam %}
+    <!-- Webcam panel (Slice 5) -->
+    <div id="webcam-panel" class="space-y-2">
+      <div class="text-xs text-subtle uppercase tracking-widest">Webcam</div>
+      <video id="webcam-video" autoplay muted playsinline
+             class="w-full rounded border border-border hidden"
+             style="max-height:120px;object-fit:cover"></video>
+      <canvas id="webcam-canvas" class="hidden" width="320" height="240"></canvas>
+      <div id="face-emotion-label" class="text-xs text-muted italic"></div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>const ENABLE_WEBCAM = {{ enable_webcam | tojson }};</script>
+<script src="/static/js/recorder.js"></script>
+{% if enable_webcam %}
+<script src="/static/js/webcam.js"></script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,238 @@
+{
+  "schema_version": "1.2",
+  "bins": {
+    "valence": [
+      -1.01,
+      -0.6,
+      -0.2,
+      0.2,
+      0.6,
+      1.01
+    ],
+    "arousal": [
+      -0.01,
+      0.35,
+      0.65,
+      0.85,
+      1.01
+    ],
+    "dominance": [
+      -1.01,
+      -0.4,
+      0.4,
+      1.01
+    ]
+  },
+  "grid": [
+    [
+      {
+        "adjectives": [
+          "numb",
+          "flat"
+        ],
+        "emoji": "\ud83d\ude36",
+        "color": "#8E8E93"
+      },
+      {
+        "adjectives": [
+          "subdued",
+          "downcast"
+        ],
+        "emoji": "\ud83d\ude14",
+        "color": "#6B7280"
+      },
+      {
+        "adjectives": [
+          "calm",
+          "neutral"
+        ],
+        "emoji": "\ud83d\ude10",
+        "color": "#94A3B8"
+      },
+      {
+        "adjectives": [
+          "content",
+          "at ease"
+        ],
+        "emoji": "\ud83d\ude42",
+        "color": "#A7F3D0"
+      },
+      {
+        "adjectives": [
+          "serene",
+          "soothed"
+        ],
+        "emoji": "\ud83d\ude0c",
+        "color": "#86EFAC"
+      }
+    ],
+    [
+      {
+        "adjectives": [
+          "tense",
+          "uneasy"
+        ],
+        "emoji": "\ud83d\ude1f",
+        "color": "#FCA5A5"
+      },
+      {
+        "adjectives": [
+          "blue",
+          "melancholic"
+        ],
+        "emoji": "\ud83d\ude1e",
+        "color": "#F59E0B"
+      },
+      {
+        "adjectives": [
+          "reserved",
+          "reflective"
+        ],
+        "emoji": "\ud83e\udd14",
+        "color": "#E5E7EB"
+      },
+      {
+        "adjectives": [
+          "measured",
+          "objective"
+        ],
+        "emoji": "\ud83d\udcce",
+        "color": "#CBD5E1"
+      },
+      {
+        "adjectives": [
+          "even",
+          "matter-of-fact"
+        ],
+        "emoji": "\ud83d\udcc4",
+        "color": "#C7D2FE"
+      }
+    ],
+    [
+      {
+        "adjectives": [
+          "irritable",
+          "agitated"
+        ],
+        "emoji": "\ud83d\ude24",
+        "color": "#F87171"
+      },
+      {
+        "adjectives": [
+          "sad",
+          "discouraged"
+        ],
+        "emoji": "\ud83d\ude22",
+        "color": "#FED7AA"
+      },
+      {
+        "adjectives": [
+          "alert",
+          "focused"
+        ],
+        "emoji": "\ud83e\udde0",
+        "color": "#93C5FD"
+      },
+      {
+        "adjectives": [
+          "buoyant",
+          "cheerful"
+        ],
+        "emoji": "\ud83d\ude04",
+        "color": "#A7F3D0"
+      },
+      {
+        "adjectives": [
+          "steady",
+          "constructive"
+        ],
+        "emoji": "\ud83e\udde9",
+        "color": "#86EFAC"
+      }
+    ],
+    [
+      {
+        "adjectives": [
+          "angry",
+          "heated"
+        ],
+        "emoji": "\ud83d\ude20",
+        "color": "#EF4444"
+      },
+      {
+        "adjectives": [
+          "anxious",
+          "strained"
+        ],
+        "emoji": "\ud83d\ude30",
+        "color": "#FB923C"
+      },
+      {
+        "adjectives": [
+          "energized",
+          "intense"
+        ],
+        "emoji": "\u26a1",
+        "color": "#60A5FA"
+      },
+      {
+        "adjectives": [
+          "excited",
+          "lively"
+        ],
+        "emoji": "\ud83e\udd29",
+        "color": "#34D399"
+      },
+      {
+        "adjectives": [
+          "joyful",
+          "exuberant"
+        ],
+        "emoji": "\ud83c\udf89",
+        "color": "#22C55E"
+      }
+    ]
+  ],
+  "intensifiers": [
+    {
+      "threshold": 0.25,
+      "adverb": ""
+    },
+    {
+      "threshold": 0.55,
+      "adverb": "slightly"
+    },
+    {
+      "threshold": 0.72,
+      "adverb": "moderately"
+    },
+    {
+      "threshold": 0.86,
+      "adverb": "very"
+    },
+    {
+      "threshold": 0.94,
+      "adverb": "highly"
+    }
+  ],
+  "dominance_tones": [
+    {
+      "min": -1.01,
+      "max": -0.4,
+      "word": "overwhelmed",
+      "emoji": "\ud83e\udee8"
+    },
+    {
+      "min": 0.4,
+      "max": 1.01,
+      "word": "confident",
+      "emoji": "\ud83d\udcaa"
+    }
+  ],
+  "defaults": {
+    "mixed_variability_threshold": 0.45,
+    "min_words": 3,
+    "max_words": 5,
+    "insufficient_label": "insufficient signal"
+  }
+}

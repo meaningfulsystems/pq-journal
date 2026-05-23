@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PQ Journal{% endblock %} — Meaningful Systems</title>
+
+  <!-- Tailwind CSS (play CDN — no build step required for local app) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          colors: {
+            surface: '#0a0a0a',
+            panel: '#111111',
+            border: '#1f1f1f',
+            muted: '#3a3a3a',
+            subtle: '#888888',
+            primary: '#ffffff',
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js" defer></script>
+  <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js" defer></script>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/css/app.css">
+
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-surface text-primary font-sans min-h-screen flex flex-col antialiased">
+
+  <!-- Navigation bar -->
+  <nav class="border-b border-border bg-panel px-6 py-3 flex items-center justify-between">
+    <!-- Meaningful Systems Logo -->
+    <a href="/journal" class="flex items-center gap-3 group">
+      <!-- Interlocking loop SVG — replace with actual Meaningful Systems SVG -->
+      <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"
+           class="transition-opacity group-hover:opacity-70">
+        <path d="M30 50 C30 30, 50 20, 70 30 C90 40, 90 60, 70 70 C50 80, 30 70, 30 50Z"
+              stroke="white" stroke-width="6" fill="none"/>
+        <path d="M70 50 C70 70, 50 80, 30 70 C10 60, 10 40, 30 30 C50 20, 70 30, 70 50Z"
+              stroke="white" stroke-width="6" fill="none" opacity="0.5"/>
+      </svg>
+      <span class="text-sm font-medium tracking-wide text-subtle group-hover:text-primary transition-colors">
+        Meaningful Systems
+      </span>
+    </a>
+
+    <!-- Nav links -->
+    <div class="flex items-center gap-4">
+      {% if request.url.path != '/unlock' and request.url.path != '/setup' %}
+      <a href="/journal/new"
+         class="text-sm text-subtle hover:text-primary transition-colors">
+        New Entry
+      </a>
+      <a href="/settings"
+         class="text-sm text-subtle hover:text-primary transition-colors">
+        Settings
+      </a>
+      <form method="post" action="/lock" class="inline">
+        <button type="submit"
+                class="text-sm text-subtle hover:text-white transition-colors px-3 py-1 rounded border border-muted hover:border-subtle">
+          Lock
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="flex-1 px-6 py-8 max-w-5xl mx-auto w-full">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-border px-6 py-3 text-center">
+    <p class="text-xs text-muted">
+      PQ Journal · Encrypted with ML-KEM-1024 + X25519 · Local only · © Meaningful Systems, LLC
+    </p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

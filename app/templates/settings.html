@@ -1,0 +1,143 @@
+{% extends "layout.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-semibold mb-8">Settings</h1>
+
+  <form method="post" action="/settings" class="space-y-10">
+
+    <!-- Journal -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Journal</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm text-subtle mb-1">Journal directory</label>
+          <input type="text" name="journal_dir" value="{{ settings.journal_dir }}"
+                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+          <p class="text-xs text-muted mt-1">Encrypted .pqj entry files and SQLite metadata are stored here.</p>
+        </div>
+
+        <div>
+          <label class="block text-sm text-subtle mb-1">Auto-lock after (minutes)</label>
+          <input type="number" name="auto_lock_minutes" value="{{ settings.auto_lock_minutes }}"
+                 min="1" max="480"
+                 class="w-40 bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-muted">
+        </div>
+      </div>
+    </section>
+
+    <!-- STT -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Speech-to-Text</h2>
+      <div class="space-y-4">
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-subtle">Active engine:</span>
+          <span class="px-2 py-0.5 rounded text-xs font-mono border
+            {% if stt_engine == 'whisper' %}border-green-800 text-green-400
+            {% elif stt_engine == 'vosk' %}border-yellow-800 text-yellow-400
+            {% else %}border-red-900 text-red-400{% endif %}">
+            {{ stt_engine }}
+          </span>
+        </div>
+
+        <div>
+          <label class="block text-sm text-subtle mb-1">faster-whisper model</label>
+          <select name="stt_model"
+                  class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-muted">
+            {% for m in ['tiny', 'base', 'small', 'medium', 'large-v3', 'large-v3-turbo'] %}
+            <option value="{{ m }}" {% if settings.stt_model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+          <p class="text-xs text-muted mt-1">
+            large-v3-turbo: ~800MB, best quality. tiny: ~75MB, fast.
+            First use downloads the model automatically.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm text-subtle mb-1">Vosk model directory (fallback)</label>
+          <input type="text" name="vosk_model_dir" value="{{ settings.vosk_model_dir or '' }}"
+                 placeholder="Leave blank to disable Vosk"
+                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+          <p class="text-xs text-muted mt-1">
+            Used when faster-whisper is not installed.
+            Download models from <span class="font-mono">alphacephei.com/vosk/models</span>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LLM / Ollama -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Language Model (Ollama)</h2>
+      <div class="space-y-4">
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-subtle">Ollama status:</span>
+          <span class="px-2 py-0.5 rounded text-xs font-mono border
+            {% if ollama_available %}border-green-800 text-green-400{% else %}border-red-900 text-red-400{% endif %}">
+            {% if ollama_available %}connected{% else %}not detected{% endif %}
+          </span>
+        </div>
+        {% if not ollama_available %}
+        <p class="text-xs text-muted">
+          Install Ollama from <span class="font-mono">ollama.com</span>, then run:
+          <code class="block mt-1 px-2 py-1 bg-panel border border-border rounded font-mono">ollama pull llama3.2:3b</code>
+        </p>
+        {% endif %}
+
+        <div>
+          <label class="block text-sm text-subtle mb-1">Ollama URL</label>
+          <input type="text" name="ollama_url" value="{{ settings.ollama_url }}"
+                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+        </div>
+
+        <div>
+          <label class="block text-sm text-subtle mb-1">Ollama model</label>
+          <input type="text" name="ollama_model" value="{{ settings.ollama_model }}"
+                 placeholder="llama3.2:3b"
+                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Features</h2>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="enable_webcam" value="true"
+               {% if settings.enable_webcam %}checked{% endif %}
+               class="w-4 h-4 rounded border-border bg-panel">
+        <div>
+          <span class="text-sm">Enable webcam emotion detection</span>
+          <p class="text-xs text-muted">
+            Requires py-feat + HSEmotion (optional install). Off by default.
+          </p>
+        </div>
+      </label>
+    </section>
+
+    <div class="flex items-center gap-4 pt-2">
+      <button type="submit"
+              class="px-4 py-2 bg-white text-black text-sm font-medium rounded hover:bg-gray-100 transition-colors">
+        Save settings
+      </button>
+      {% if saved %}
+      <span class="text-sm text-green-400">Saved.</span>
+      {% endif %}
+    </div>
+
+  </form>
+
+  <!-- Prompts -->
+  <section class="mt-12 pt-8 border-t border-border">
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Logotherapy Prompts</h2>
+    <p class="text-sm text-subtle mb-3">
+      Prompts are stored in <code class="font-mono text-xs">{{ prompts_path }}</code>.
+      Edit that YAML file to add, remove, or modify prompts.
+    </p>
+    <p class="text-sm text-muted">{{ prompt_count }} prompts loaded.</p>
+  </section>
+
+</div>
+{% endblock %}

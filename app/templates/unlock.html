@@ -1,0 +1,168 @@
+{% extends "layout.html" %}
+{% block title %}Unlock{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto mt-16">
+  <!-- Header -->
+  <div class="text-center mb-10">
+    <svg width="48" height="48" viewBox="0 0 100 100" fill="none" class="mx-auto mb-4">
+      <path d="M30 50 C30 30, 50 20, 70 30 C90 40, 90 60, 70 70 C50 80, 30 70, 30 50Z"
+            stroke="white" stroke-width="6" fill="none"/>
+      <path d="M70 50 C70 70, 50 80, 30 70 C10 60, 10 40, 30 30 C50 20, 70 30, 70 50Z"
+            stroke="white" stroke-width="6" fill="none" opacity="0.5"/>
+    </svg>
+    <h1 class="text-2xl font-light tracking-wide">PQ Journal</h1>
+    <p class="text-sm text-subtle mt-1">Post-quantum encrypted journaling</p>
+  </div>
+
+  {% if error %}
+  <div class="mb-4 px-4 py-3 rounded border border-red-800 bg-red-950 text-red-300 text-sm">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/unlock" class="space-y-5">
+    <!-- Key directory -->
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Key Directory</label>
+
+      <!-- Detected removable drives as quick-pick -->
+      {% if drives %}
+      <div class="mb-2 flex flex-wrap gap-2">
+        {% for drive in drives %}
+        <button type="button"
+                onclick="document.getElementById('key_dir').value='{{ drive.mountpoint }}'"
+                class="text-xs px-2 py-1 rounded border border-muted text-subtle hover:border-subtle hover:text-primary transition-colors">
+          {{ drive.device }} ({{ drive.free_gb }}GB free)
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Path input + browse button -->
+      <div class="flex gap-2">
+        <input type="text" id="key_dir" name="key_dir"
+               value="{{ saved_key_dir }}"
+               placeholder="/path/to/key-directory"
+               class="flex-1 bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+               required>
+        <button type="button"
+                onclick="openFileBrowser()"
+                class="px-3 py-2 border border-border rounded text-xs text-subtle hover:border-subtle hover:text-primary transition-colors">
+          Browse
+        </button>
+      </div>
+    </div>
+
+    <!-- Passphrase -->
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Passphrase</label>
+      <input type="password" name="passphrase"
+             placeholder="Your key passphrase"
+             autocomplete="current-password"
+             class="w-full bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+             required>
+    </div>
+
+    <button type="submit"
+            class="w-full py-2.5 bg-white text-black rounded font-medium text-sm hover:bg-gray-100 transition-colors">
+      Unlock Journal
+    </button>
+  </form>
+
+  <div class="mt-6 text-center text-xs text-muted">
+    <p>First time? <a href="/setup" class="text-subtle hover:text-primary transition-colors">Generate your keys</a></p>
+  </div>
+</div>
+
+<!-- File Browser Modal -->
+<div id="file-browser-modal"
+     class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-panel border border-border rounded-lg w-full max-w-xl max-h-[70vh] flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+      <span class="text-sm font-medium">Select Key Directory</span>
+      <button onclick="closeFileBrowser()" class="text-subtle hover:text-primary text-lg leading-none">×</button>
+    </div>
+
+    <div id="browser-path" class="px-4 py-2 text-xs text-subtle font-mono border-b border-border truncate"></div>
+
+    <div id="browser-contents" class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5"></div>
+
+    <div class="px-4 py-3 border-t border-border flex justify-between items-center">
+      <span class="text-xs text-subtle" id="browser-selected">No directory selected</span>
+      <div class="flex gap-2">
+        <button onclick="closeFileBrowser()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">Cancel</button>
+        <button onclick="selectCurrentDir()" class="px-3 py-1.5 text-xs bg-white text-black rounded hover:bg-gray-100 transition-colors">Select This Directory</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentBrowserPath = '';
+
+async function openFileBrowser() {
+  document.getElementById('file-browser-modal').classList.remove('hidden');
+  const res = await fetch('/api/home');
+  const data = await res.json();
+  await browseTo(data.path);
+}
+
+function closeFileBrowser() {
+  document.getElementById('file-browser-modal').classList.add('hidden');
+}
+
+function selectCurrentDir() {
+  document.getElementById('key_dir').value = currentBrowserPath;
+  closeFileBrowser();
+}
+
+async function browseTo(path) {
+  currentBrowserPath = path;
+  const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
+  const data = await res.json();
+
+  document.getElementById('browser-path').textContent = data.current;
+  document.getElementById('browser-selected').textContent = data.current;
+
+  const container = document.getElementById('browser-contents');
+  container.innerHTML = '';
+
+  if (data.error) {
+    container.innerHTML = `<p class="text-red-400 text-xs px-2">${data.error}</p>`;
+    return;
+  }
+
+  // Parent directory link
+  if (data.parent) {
+    const el = document.createElement('button');
+    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-subtle hover:bg-white/5 transition-colors flex items-center gap-2';
+    el.innerHTML = '<span class="text-muted">↑</span> ..';
+    el.onclick = () => browseTo(data.parent);
+    container.appendChild(el);
+  }
+
+  // Directories
+  for (const dir of data.dirs) {
+    const el = document.createElement('button');
+    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-primary hover:bg-white/5 transition-colors flex items-center gap-2';
+    el.innerHTML = `<span class="text-subtle">▶</span> ${dir.name}/`;
+    el.onclick = () => browseTo(dir.path);
+    container.appendChild(el);
+  }
+
+  if (data.dirs.length === 0 && data.files.length === 0) {
+    container.innerHTML = '<p class="text-xs text-muted px-3 py-2">Empty directory</p>';
+  }
+}
+
+// Show detected drives in browser
+async function loadDrives() {
+  const res = await fetch('/api/drives');
+  const data = await res.json();
+  // Drives already shown in the quick-pick buttons above
+}
+</script>
+{% endblock %}
