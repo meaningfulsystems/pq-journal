@@ -1,0 +1,60 @@
+MIT License
+
+Copyright (c) 2026 Meaningful Systems, LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Third-Party Software Notices
+
+PQ Journal depends on third-party packages installed separately by the user.
+This software does not bundle or redistribute those packages. Each carries its
+own license terms, which users accept upon installation.
+
+Core dependencies (MIT / BSD / Apache 2.0 — all permissive open source):
+  fastapi, uvicorn, starlette     MIT / BSD
+  jinja2, itsdangerous            BSD
+  sqlalchemy, aiosqlite           MIT
+  cryptography                    Apache 2.0 / BSD
+  liboqs-python                   MIT  (Open Quantum Safe project)
+  pydantic-settings, pyyaml       MIT
+  numpy, psutil, httpx            BSD
+
+Optional AI dependencies (MIT / BSD / Apache 2.0):
+  faster-whisper                  MIT
+  vosk                            Apache 2.0
+  transformers                    Apache 2.0  (Hugging Face)
+  torch (PyTorch)                 BSD-3-Clause
+  deepface                        MIT
+  tensorflow, tf-keras            Apache 2.0
+  weasyprint                      BSD
+
+AI model weights (downloaded separately on first use):
+  OpenAI Whisper model weights    MIT
+  j-hartmann/emotion-english-*   Apache 2.0
+  DeepFace emotion weights        MIT
+
+Ollama and language model weights:
+  Ollama                          MIT  (https://github.com/ollama/ollama)
+  Llama 3.2 model weights         Meta Llama 3 Community License
+                                  (https://llama.meta.com/llama3/license/)
+                                  Not a traditional open source license.
+                                  Users accept Meta's terms when running
+                                  `ollama pull llama3.2:3b`.
