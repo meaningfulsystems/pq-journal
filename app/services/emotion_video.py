@@ -3,7 +3,7 @@ Facial expression recognition from JPEG frames.
 
 Two backends, tried in order:
   1. Custom ResNet50 weights at ~/.pq-journal/fer_resnet50.pth  (highest accuracy)
-  2. DeepFace  (auto-downloads ~80 MB weights on first use, no manual setup)
+  2. DeepFace  (auto-downloads ~6 MB emotion weights on first use, no manual setup)
 
 Disabled gracefully when both are unavailable.
 7 classes: angry, disgust, fear, happy, neutral, sad, surprise
@@ -11,8 +11,12 @@ Disabled gracefully when both are unavailable.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Optional
+
+# Force legacy Keras for TensorFlow 2.16+ compatibility with DeepFace
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 logger = logging.getLogger(__name__)
 
