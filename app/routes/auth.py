@@ -1,13 +1,16 @@
 """Authentication routes: unlock, lock, setup, key generation."""
 from __future__ import annotations
 
+import asyncio
 import os
+import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
 import yaml
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
@@ -24,6 +27,25 @@ from app.services.session import SessionData
 
 router = APIRouter(tags=["auth"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Rate limiting: track failed unlock attempts per source IP
+# Structure: { ip: [timestamp, ...] }
+_UNLOCK_ATTEMPTS: dict[str, list[float]] = defaultdict(list)
+_RATE_WINDOW_SECONDS = 300   # 5-minute window
+_RATE_MAX_ATTEMPTS = 10      # hard lock after this many failures
+_RATE_DELAY_SECONDS = 2.0    # delay on each failure
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if the IP is currently rate-limited (should return 429)."""
+    now = time.monotonic()
+    # Prune timestamps outside the window
+    _UNLOCK_ATTEMPTS[ip] = [t for t in _UNLOCK_ATTEMPTS[ip] if now - t < _RATE_WINDOW_SECONDS]
+    return len(_UNLOCK_ATTEMPTS[ip]) >= _RATE_MAX_ATTEMPTS
+
+
+def _record_failed_attempt(ip: str) -> None:
+    _UNLOCK_ATTEMPTS[ip].append(time.monotonic())
 
 
 def _apply_journal_settings(journal_dir: str) -> None:
@@ -78,6 +100,14 @@ async def do_unlock(
     key_dir: str = Form(...),
     passphrase: str = Form(...),
 ):
+    client_ip = request.client.host if request.client else "unknown"
+
+    if _check_rate_limit(client_ip):
+        return JSONResponse(
+            {"detail": "Too many failed attempts. Please wait before trying again."},
+            status_code=429,
+        )
+
     error = None
     try:
         journal_dir = journal_dir.strip()
@@ -115,6 +145,10 @@ async def do_unlock(
         error = str(e)
     except Exception as e:
         error = f"Unlock failed: {e}"
+
+    # Rate limiting: record failure and impose delay to slow brute-force
+    _record_failed_attempt(client_ip)
+    await asyncio.sleep(_RATE_DELAY_SECONDS)
 
     drives = detect_removable_drives()
     return templates.TemplateResponse(

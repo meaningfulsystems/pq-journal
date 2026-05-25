@@ -18,6 +18,46 @@ from app.services import stt as stt_svc
 from app.services import emotion_text as emotion_svc
 from app.services import emotion_video as video_svc
 
+_CSP = (
+    "default-src 'self'; "
+    # blob: required for AudioWorklet processor loaded via URL.createObjectURL()
+    "script-src 'self' 'unsafe-inline' blob: https://cdn.tailwindcss.com https://unpkg.com; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src https://fonts.gstatic.com; "
+    "img-src 'self' data:; "
+    "connect-src 'self' ws://localhost:* ws://127.0.0.1:*; "
+    "frame-ancestors 'none';"
+)
+
+
+class SecurityHeadersMiddleware:
+    """
+    Raw ASGI middleware: adds security headers to every HTTP response (R104).
+    Explicitly passes WebSocket and lifespan scopes through unchanged —
+    BaseHTTPMiddleware is avoided because it breaks WebSocket connections.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            # WebSocket upgrade and lifespan events pass through unmodified
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_security_headers(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-content-type-options", b"nosniff"))
+                headers.append((b"x-frame-options", b"DENY"))
+                headers.append((b"content-security-policy", _CSP.encode()))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)
+
+
 # Ranked model preferences: first match wins
 _OLLAMA_MODEL_PREFERENCE = ["phi3", "llama3.2", "llama3.1", "llama3", "mistral", "tinyllama"]
 
@@ -139,6 +179,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(auth.router)

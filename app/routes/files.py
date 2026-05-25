@@ -4,7 +4,7 @@ from __future__ import annotations
 import platform
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -15,16 +15,43 @@ from app.services.session import SessionData
 router = APIRouter(prefix="/api", tags=["files"])
 
 
+def _check_origin(request: Request) -> None:
+    """
+    Reject cross-origin requests to pre-authentication filesystem endpoints.
+
+    Browsers always set Origin on cross-origin requests. A request from
+    https://evil.com to http://localhost:8000 carries Origin: https://evil.com,
+    which will not match. Requests with no Origin header (curl, direct API
+    calls) are permitted — only browser cross-origin requests are blocked.
+    """
+    origin = request.headers.get("origin")
+    if origin is None:
+        return  # non-browser / direct API call — allow
+
+    from app.config import get_settings
+    cfg = get_settings()
+    expected_origins = {
+        f"http://{cfg.host}:{cfg.port}",
+        f"http://localhost:{cfg.port}",
+        f"http://127.0.0.1:{cfg.port}",
+    }
+    if origin not in expected_origins:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Cross-origin request rejected")
+
+
 @router.get("/drives")
-async def list_drives() -> JSONResponse:
+async def list_drives(request: Request) -> JSONResponse:
     """Return detected removable drives (USB, etc.)."""
+    _check_origin(request)
     drives = detect_removable_drives()
     return JSONResponse({"drives": drives})
 
 
 @router.get("/browse")
-async def browse(path: str = "") -> JSONResponse:
+async def browse(request: Request, path: str = "") -> JSONResponse:
     """Browse server filesystem for key directory selection."""
+    _check_origin(request)
     if not path:
         path = _default_start_path()
     result = browse_directory(path)
@@ -32,8 +59,9 @@ async def browse(path: str = "") -> JSONResponse:
 
 
 @router.get("/home")
-async def home_dir() -> JSONResponse:
+async def home_dir(request: Request) -> JSONResponse:
     """Return the user's home directory path."""
+    _check_origin(request)
     return JSONResponse({"path": str(Path.home())})
 
 
@@ -43,8 +71,9 @@ class MkdirRequest(BaseModel):
 
 
 @router.post("/mkdir")
-async def make_directory(body: MkdirRequest) -> JSONResponse:
+async def make_directory(request: Request, body: MkdirRequest) -> JSONResponse:
     """Create a new subdirectory inside parent and return the new path."""
+    _check_origin(request)
     name = body.name.strip()
     if not name or "/" in name or "\\" in name or name in (".", ".."):
         return JSONResponse({"error": "Invalid directory name"}, status_code=400)
@@ -90,10 +119,11 @@ async def ping(session: SessionData = Depends(require_unlocked)) -> JSONResponse
 
 
 @router.get("/status")
-async def get_status() -> JSONResponse:
+async def get_status(_session: SessionData = Depends(require_unlocked)) -> JSONResponse:
     """Return active engine status for display in the UI."""
     from app.services.stt import get_active_engine
     from app.services.emotion_text import get_emotion_engine
+    from app.services.emotion_video import get_fer_engine
     from app.config import get_settings
     import httpx
 
@@ -135,6 +165,7 @@ async def get_status() -> JSONResponse:
     return JSONResponse({
         "stt_engine": get_active_engine(),
         "emotion_engine": get_emotion_engine(),
+        "fer_engine": get_fer_engine(),
         "ollama_available": ollama_available,
         "llm_ok": llm_ok,
         "hf_available": hf_available,

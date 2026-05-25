@@ -809,6 +809,54 @@ This document specifies the functional, performance, and security requirements f
 
 ---
 
+#### R101 — Pre-Authentication API Origin Validation
+**Category:** SEC  
+**Statement:** The filesystem browser endpoints (`/api/browse`, `/api/mkdir`, `/api/drives`, `/api/home`) shall reject any request where the `Origin` header is present but does not match the application's configured host and port, returning HTTP 403 Forbidden.  
+**Rationale:** These endpoints operate before authentication and can enumerate the local filesystem. A malicious website running while the app is open can make background fetch requests to localhost; the `Origin` header distinguishes same-app requests from cross-origin attacks. Direct API calls (no `Origin` header, e.g., curl) are permitted.  
+**Verification:** Test — make request to /api/browse with Origin: https://evil.com; verify 403 returned. Make same request with Origin: http://localhost:8000; verify 200 returned.
+
+---
+
+#### R102 — Authenticated Status Endpoint
+**Category:** SEC  
+**Statement:** The `/api/status` endpoint shall require a valid authenticated session and shall return HTTP 401 for unauthenticated requests.  
+**Rationale:** Engine version and configuration data (Ollama model name, STT engine) aids attacker reconnaissance. Restricting to authenticated sessions limits exposure.  
+**Verification:** Test — GET /api/status without session; verify 401 returned. GET with valid session; verify 200 returned.
+
+---
+
+#### R103 — Unlock Attempt Rate Limiting
+**Category:** SEC  
+**Statement:** The `/unlock` POST endpoint shall enforce a minimum 2-second processing delay after each failed authentication attempt. After 10 failed attempts from the same source within any 5-minute window, the system shall return HTTP 429 Too Many Requests until the window expires.  
+**Rationale:** Without rate limiting, a local script or malware can attempt thousands of passphrase guesses per second. A 2-second delay reduces the attempt rate to 30/minute; the 429 lockout caps total attempts to 10 per 5 minutes per source.  
+**Verification:** Test — submit 11 failed unlock attempts in sequence; verify 429 returned on 11th attempt; verify each failed attempt takes ≥ 2 seconds to respond.
+
+---
+
+#### R104 — HTTP Security Response Headers
+**Category:** SEC  
+**Statement:** All HTTP responses shall include the following headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and a `Content-Security-Policy` restricting script sources to `'self'`, `cdn.tailwindcss.com`, and `unpkg.com`; style sources to `'self'` and `fonts.googleapis.com`; font sources to `fonts.gstatic.com`; and connection sources to `'self'` and WebSocket localhost.  
+**Rationale:** `nosniff` prevents MIME-type confusion attacks; `X-Frame-Options: DENY` prevents clickjacking; CSP restricts script and data exfiltration vectors to known-good origins.  
+**Verification:** Test — GET /unlock; verify all three headers present in response with correct values.
+
+---
+
+#### R105 — LLM Prompt Injection Defense
+**Category:** SEC  
+**Statement:** All user-supplied text (journal content, voice transcripts) included in LLM prompts shall be enclosed in `<user_content>` XML delimiter tags, and each prompt shall explicitly instruct the model to treat content within those tags as data only and to ignore any instructions embedded within them.  
+**Rationale:** Without delimiters, a user (or their journal content) could embed instructions that override the intended LLM behavior ("jailbreaking"), potentially producing unexpected or harmful LLM outputs.  
+**Verification:** Inspection — read LLM prompt templates in llm.py; verify user content is wrapped in `<user_content>` tags and prompt includes injection-defense instruction.
+
+---
+
+#### R106 — Windows Key File Permission Advisory
+**Category:** SEC  
+**Statement:** On Windows systems, after writing key files to disk, the system shall emit a console warning that Unix file permissions (`0o600`) are not enforced by the OS and that the user must manually restrict access to the key directory using Windows ACLs or folder permissions.  
+**Rationale:** `os.chmod` silently succeeds on Windows but has no security effect, leaving key files potentially readable by other local user accounts. The advisory ensures Windows users are not misled into believing files are protected.  
+**Verification:** Test — mock `platform.system()` to return "Windows"; write a key file; verify warning message printed.
+
+---
+
 ### 3.12 Performance Requirements (PERF)
 
 ---
@@ -973,6 +1021,12 @@ This document specifies the functional, performance, and security requirements f
 | R090 | SEC | No Plaintext Entry Storage | Test |
 | R091 | SEC | Ollama Timeout Enforcement | Test |
 | R092 | SEC | Debug Mode Default Off | Test |
+| R101 | SEC | Pre-Auth API Origin Validation | Test |
+| R102 | SEC | Authenticated Status Endpoint | Test |
+| R103 | SEC | Unlock Rate Limiting | Test |
+| R104 | SEC | HTTP Security Headers | Test |
+| R105 | SEC | LLM Prompt Injection Defense | Inspection |
+| R106 | SEC | Windows Key Permission Advisory | Test |
 | R093 | PERF | Search Streaming | Test |
 | R094 | PERF | Non-Blocking STT Init | Test |
 | R095 | PERF | Non-Blocking Emotion Init | Test |

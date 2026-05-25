@@ -109,7 +109,7 @@ def _transcribe_whisper(pcm_bytes: bytes, sample_rate: int) -> str:
     audio = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
     segments, _ = _whisper_model.transcribe(
         audio,
-        language=None,
+        language="en",
         condition_on_previous_text=False,
         no_speech_threshold=0.5,
         vad_filter=True,
@@ -148,7 +148,7 @@ def transcribe_audio_file(file_bytes: bytes, filename: str = "audio") -> str:
         try:
             segments, _ = _whisper_model.transcribe(
                 tmp_path,
-                language=None,
+                language="en",
                 vad_filter=True,
             )
             return " ".join(seg.text.strip() for seg in segments).strip()

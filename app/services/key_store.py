@@ -199,11 +199,26 @@ def key_dir_has_keys(key_dir: str) -> bool:
     return all((d / fn).exists() for fn in KEY_FILES.values())
 
 
+_windows_permission_warned = False
+
+
 def _secure_chmod(path: Path) -> None:
+    global _windows_permission_warned
+    if platform.system() == "Windows":
+        if not _windows_permission_warned:
+            print(
+                "\n⚠  WARNING: Key file permissions cannot be enforced on Windows.\n"
+                "   os.chmod(0o600) has no effect on Windows ACLs.\n"
+                "   Manually restrict access to your key directory:\n"
+                f"   {path.parent}\n"
+                "   Right-click → Properties → Security → remove all accounts except your own.\n"
+            )
+            _windows_permission_warned = True
+        return
     try:
         os.chmod(path, 0o600)
     except Exception:
-        pass  # Windows doesn't support chmod
+        pass
 
 
 def _iso_now() -> str:

@@ -187,9 +187,19 @@ function _buildEmotionTag() {
   // Only build a tag when we have an actual LLM result — skip fallback phrases
   if (!_lastLlmEmotionText) return '';
   const v = _latestVad;
-  const face = (typeof _dominantEmotion === 'function') ? _dominantEmotion() : '';
-  const machineInfo = `voice V:${v.V.toFixed(2)} A:${v.A.toFixed(2)} D:${v.D.toFixed(2)}${face ? ' face:' + face : ''}`;
-  return `[Emotion summary: ${_lastLlmEmotionText} {${machineInfo}}]`;
+  const voicePart = `voice V:${v.V.toFixed(2)} A:${v.A.toFixed(2)} D:${v.D.toFixed(2)}`;
+
+  let videoPart = '';
+  if (typeof _faceScores === 'function') {
+    const scores = _faceScores();
+    const entries = Object.entries(scores);
+    if (entries.length > 0) {
+      const scoreStr = entries.map(([em, s]) => `${em}:${s.toFixed(2)}`).join(' ');
+      videoPart = ` {video ${scoreStr}}`;
+    }
+  }
+
+  return `[Emotion summary: ${_lastLlmEmotionText} {${voicePart}}${videoPart}]`;
 }
 
 function _growAndScrollTextarea(ta) {
@@ -238,7 +248,8 @@ async function _fetchAndShowEngineStatus() {
       const llmStatus = data.llm_ok
         ? data.ollama_model + ' ✓'
         : (data.ollama_available ? data.ollama_model + ' (no response)' : 'OFFLINE');
-      dbg(`Engine status — STT:${data.stt_engine} | HF:${data.emotion_engine} | LLM:${llmStatus} | emotion window:${windowSec}s / min:${minSec}s / min-words:${_emotionMinWords}`);
+      const ferStatus = data.fer_engine && data.fer_engine !== 'none' ? data.fer_engine + ' ✓' : 'none';
+      dbg(`Engine status — STT:${data.stt_engine} | HF:${data.emotion_engine} | FER:${ferStatus} | LLM:${llmStatus} | emotion window:${windowSec}s / min:${minSec}s / min-words:${_emotionMinWords}`);
     }
   } catch (e) {
     if (typeof dbg === 'function') dbg('ERROR fetching /api/status: ' + e);

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     auto_lock_minutes: int = 10
 
     # STT
-    stt_model: str = "large-v3-turbo"  # faster-whisper model name
+    stt_model: str = "small"  # faster-whisper model name
     vosk_model_dir: Optional[Path] = None
 
     # LLM (Ollama)

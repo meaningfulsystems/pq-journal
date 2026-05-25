@@ -6,9 +6,9 @@ vosk>=0.3.45
 transformers>=4.40
 torch>=2.2
 
-# Facial emotion (heavy — ~500MB models downloaded on first use)
-# py-feat requires torch, which is also listed above
-feat>=0.6
+# Facial emotion — DeepFace (auto-downloads ~6 MB model on first use)
+deepface>=0.0.93
+tf-keras>=2.16          # required by DeepFace when TensorFlow >= 2.16 is installed
 
 # PDF export
 weasyprint>=62

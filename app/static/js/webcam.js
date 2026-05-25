@@ -80,3 +80,19 @@ function _dominantEmotion() {
   }
   return best;
 }
+
+/**
+ * Return emotion proportions across all captured frames, sorted descending.
+ * e.g. { neutral: 0.71, angry: 0.29 }
+ */
+function _faceScores() {
+  if (faceFramesSent === 0) return {};
+  const scores = {};
+  for (const [em, n] of Object.entries(faceEmotionCounts)) {
+    scores[em] = Math.round((n / faceFramesSent) * 100) / 100;
+  }
+  // Sort descending by proportion
+  return Object.fromEntries(
+    Object.entries(scores).sort(([, a], [, b]) => b - a)
+  );
+}
