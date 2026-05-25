@@ -1,0 +1,107 @@
+@startuml data_model
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 11
+skinparam ArrowColor #444444
+skinparam ClassBorderColor #666666
+skinparam ClassBackgroundColor #e8f0fe
+skinparam ClassHeaderBackgroundColor #c5d8fa
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #ccaa00
+
+title PQ Journal — Data Model
+
+class "JournalEntry\n(SQLite)" as db_entry {
+  + id : String(36) [PK, UUID4]
+  --
+  ~ title : EncryptedText
+  ~ tags : EncryptedText [JSON array]
+  ~ emotion_label : EncryptedText [nullable]
+  ~ emotion_scores : EncryptedText [JSON, nullable]
+  --
+  + created_at : DateTime [TZ-aware]
+  + modified_at : DateTime [TZ-aware]
+  + file_name : Text [UUID ref, not encrypted]
+  + word_count : Integer
+  ==
+  ~ = AES-256-GCM encrypted column
+}
+
+class ".pqj File\n(filesystem)" as pqj {
+  + id : UUID
+  + title : String
+  + created : ISO8601
+  + modified : ISO8601
+  + tags : String[]
+  + body : String
+  + paragraphs : Paragraph[]
+  + overall_emotion : String
+  + word_count : Integer
+  --
+  Entire file encrypted with:
+  ML-KEM-1024 + X25519 + AES-256-GCM
+}
+
+class "Paragraph" as para {
+  + text : String
+  + emotion_label : String
+  + emotion_scores : Map<emotion, float>
+  + vad : {V, A, D}
+  + face_emotion : String
+}
+
+class "Key File\n(key_dir)" as key_file {
+  + v : Integer (version=2)
+  + salt : base64(32 bytes)
+  + nonce : base64(12 bytes)
+  + tag : base64(16 bytes)
+  + ct : base64(encrypted key bytes)
+  --
+  Protected by:
+  PBKDF2-HMAC-SHA256 600k iter + AES-256-GCM
+}
+
+class "settings.yaml\n(journal/settings/)" as settings {
+  + auto_lock_minutes : int
+  + stt_model : string
+  + ollama_url : string
+  + ollama_model : string
+  + emotion_window_seconds : int
+  + emotion_min_seconds : int
+  + emotion_min_words : int
+  + enable_webcam : bool
+  + enable_debug : bool
+  --
+  No path information stored
+}
+
+class "SessionData\n(in-memory only)" as session {
+  + kem_pub : bytearray
+  + kem_priv : bytearray
+  + x25519_pub : bytearray
+  + x25519_priv : bytearray
+  + key_dir : str
+  + journal_dir : str
+  + last_activity : float
+  --
+  Zeroed with ctypes.memset() on destroy
+  Never persisted to disk
+}
+
+db_entry "1" -- "1" pqj : file_name references id
+pqj "1" *-- "0..*" para : paragraphs
+
+note bottom of db_entry
+  Only non-sensitive fields
+  stored in plaintext:
+  id, timestamps, file_name, word_count
+end note
+
+note bottom of key_file
+  Two files per user:
+  kem_private.key
+  x25519_private.key
+end note
+
+@enduml

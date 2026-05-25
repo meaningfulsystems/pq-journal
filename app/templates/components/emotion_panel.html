@@ -17,12 +17,23 @@
     {% endif %}
 
     {% if vad and vad.A is defined %}
-    <div class="text-xs text-muted">
-      Voice — V:{{ "%.2f"|format(vad.V) }} A:{{ "%.2f"|format(vad.A) }} D:{{ "%.2f"|format(vad.D) }}
+    <div class="p-3 rounded border border-border bg-panel space-y-2">
+      <div class="text-xs text-muted mb-1">Voice Tone</div>
+      {% set axes = [("Valence", vad.V, -1, 1), ("Arousal", vad.A, 0, 1), ("Dominance", vad.D, 0, 1)] %}
+      {% for label, val, lo, hi in axes %}
+      {% set pct = (((val - lo) / (hi - lo)) * 100) | int %}
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted w-20 shrink-0">{{ label }}</span>
+        <div class="flex-1 h-1.5 bg-border rounded-full">
+          <div class="h-1.5 bg-subtle rounded-full transition-all duration-700" style="width:{{ pct }}%"></div>
+        </div>
+        <span class="text-xs text-muted w-8 text-right">{{ "%.2f" | format(val) }}</span>
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
 
-    <div class="space-y-3" id="emotion-results">
+    <div class="space-y-3 max-h-48 overflow-y-auto pr-1" id="emotion-results">
       {% for para in paragraphs %}
       {% if para.emotion_label %}
       <div class="border-l-2 border-muted pl-2">

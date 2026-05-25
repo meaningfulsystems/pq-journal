@@ -3,21 +3,35 @@
 
 {% block content %}
 <div class="max-w-2xl">
-  <h1 class="text-2xl font-semibold mb-8">Settings</h1>
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-semibold">Settings</h1>
+    <button type="button" onclick="saveAndClose()"
+            class="text-subtle hover:text-primary transition-colors text-2xl leading-none px-2"
+            title="Save and close">×</button>
+  </div>
 
-  <form method="post" action="/settings" class="space-y-10">
+  <form id="settings-form" method="post" action="/settings" class="space-y-10">
+
+    <!-- Storage locations -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Storage Locations</h2>
+      <div class="space-y-2 px-4 py-3 rounded border border-border bg-panel font-mono text-xs">
+        <div class="flex items-start gap-2">
+          <span class="text-muted shrink-0 w-20">Journal</span>
+          <span class="text-primary break-all">{{ settings.journal_dir }}</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-muted shrink-0 w-20">Keys</span>
+          <span class="text-primary break-all">{{ key_dir }}</span>
+        </div>
+      </div>
+      <p class="text-xs text-muted mt-2">Encrypted with ML-KEM-1024 + X25519 · AES-256-GCM · All data stays on this device.</p>
+    </section>
 
     <!-- Journal -->
     <section>
       <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Journal</h2>
       <div class="space-y-4">
-        <div>
-          <label class="block text-sm text-subtle mb-1">Journal directory</label>
-          <input type="text" name="journal_dir" value="{{ settings.journal_dir }}"
-                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
-          <p class="text-xs text-muted mt-1">Encrypted .pqj entry files and SQLite metadata are stored here.</p>
-        </div>
-
         <div>
           <label class="block text-sm text-subtle mb-1">Auto-lock after (minutes)</label>
           <input type="number" name="auto_lock_minutes" value="{{ settings.auto_lock_minutes }}"
@@ -68,6 +82,43 @@
       </div>
     </section>
 
+    <!-- Emotion / HuggingFace -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Emotion Analysis (HuggingFace)</h2>
+      <div class="space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-subtle">Status:</span>
+          <span class="px-2 py-0.5 rounded text-xs font-mono border
+            {% if emotion_engine == 'hf' %}border-green-800 text-green-400
+            {% else %}border-red-900 text-red-400{% endif %}">
+            {% if emotion_engine == 'hf' %}active{% else %}inactive{% endif %}
+          </span>
+          {% if emotion_engine != 'hf' %}
+          <span class="text-xs text-muted">falling back to: keyword heuristic</span>
+          {% endif %}
+        </div>
+        {% if not hf_available %}
+        <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 space-y-3">
+          <p class="text-sm text-yellow-300 font-medium">HuggingFace transformers not installed — per-paragraph emotion analysis unavailable.</p>
+          <p class="text-xs text-yellow-200/70">Install once. The model (<span class="font-mono">j-hartmann/emotion-english-distilroberta-base</span>) downloads automatically (~250MB) on first run.</p>
+          <div>
+            <p class="text-xs text-subtle mb-1">Run in Terminal (requires ~2GB for PyTorch):</p>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">pip install transformers torch</code>
+              <button type="button" onclick="copyCmd(this, 'pip install transformers torch')"
+                      class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
+            </div>
+            <p class="text-xs text-subtle mt-1">Then restart PQ Journal. Model downloads on first emotion analysis.</p>
+          </div>
+        </div>
+        {% elif emotion_engine != 'hf' %}
+        <p class="text-xs text-muted">transformers is installed but the model hasn't loaded yet. It will download automatically on first use.</p>
+        {% else %}
+        <p class="text-xs text-muted">Model: <span class="font-mono">j-hartmann/emotion-english-distilroberta-base</span></p>
+        {% endif %}
+      </div>
+    </section>
+
     <!-- LLM / Ollama -->
     <section>
       <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Language Model (Ollama)</h2>
@@ -80,10 +131,32 @@
           </span>
         </div>
         {% if not ollama_available %}
-        <p class="text-xs text-muted">
-          Install Ollama from <span class="font-mono">ollama.com</span>, then run:
-          <code class="block mt-1 px-2 py-1 bg-panel border border-border rounded font-mono">ollama pull llama3.2:3b</code>
-        </p>
+        <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 space-y-3">
+          <p class="text-sm text-yellow-300 font-medium">Ollama is not running — emotion analysis will not work.</p>
+          <p class="text-xs text-yellow-200/70">
+            Ollama is a free, local AI model runner. Install it, then pull a model:
+          </p>
+          <div class="space-y-2">
+            <div>
+              <p class="text-xs text-subtle mb-1">1. Install Ollama (download the Mac app or run in Terminal):</p>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 block px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">curl -fsSL https://ollama.com/install.sh | sh</code>
+                <button type="button" onclick="copyCmd(this, 'curl -fsSL https://ollama.com/install.sh | sh')"
+                        class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
+              </div>
+              <p class="text-xs text-subtle mt-1">Or download the Mac app from <span class="font-mono">ollama.com</span></p>
+            </div>
+            <div>
+              <p class="text-xs text-subtle mb-1">2. Pull the language model (run once in Terminal):</p>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 block px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">ollama pull llama3.2:3b</code>
+                <button type="button" onclick="copyCmd(this, 'ollama pull llama3.2:3b')"
+                        class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-subtle">After installing, restart PQ Journal (<code class="font-mono">python run.py</code>) and reload this page.</p>
+        </div>
         {% endif %}
 
         <div>
@@ -98,23 +171,71 @@
                  placeholder="llama3.2:3b"
                  class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
         </div>
+
+        <div class="pt-2 border-t border-border">
+          <h3 class="text-xs text-subtle mb-3">Emotion Summary Timing</h3>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs text-subtle mb-1">Interval (seconds)</label>
+              <input type="number" name="emotion_window_seconds" value="{{ settings.emotion_window_seconds }}"
+                     min="{{ settings.emotion_min_seconds }}" max="300"
+                     class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+              <p class="text-xs text-muted mt-1">Recurring period between summaries</p>
+            </div>
+            <div>
+              <label class="block text-xs text-subtle mb-1">Min window (seconds)</label>
+              <input type="number" name="emotion_min_seconds" value="{{ settings.emotion_min_seconds }}"
+                     min="10" max="300"
+                     class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+              <p class="text-xs text-muted mt-1">Never fire faster than this</p>
+            </div>
+            <div>
+              <label class="block text-xs text-subtle mb-1">Min words</label>
+              <input type="number" name="emotion_min_words" value="{{ settings.emotion_min_words }}"
+                     min="1" max="200"
+                     class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+              <p class="text-xs text-muted mt-1">Skip if transcript too short</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
     <!-- Features -->
     <section>
       <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Features</h2>
-      <label class="flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" name="enable_webcam" value="true"
-               {% if settings.enable_webcam %}checked{% endif %}
-               class="w-4 h-4 rounded border-border bg-panel">
-        <div>
-          <span class="text-sm">Enable webcam emotion detection</span>
-          <p class="text-xs text-muted">
-            Requires py-feat + HSEmotion (optional install). Off by default.
-          </p>
+      <div class="space-y-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="enable_webcam" value="true"
+                 {% if settings.enable_webcam %}checked{% endif %}
+                 class="w-4 h-4 rounded border-border bg-panel">
+          <div>
+            <span class="text-sm">Enable webcam emotion detection</span>
+            <p class="text-xs text-muted">Requires py-feat + HSEmotion (optional install). Off by default.</p>
+          </div>
+        </label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="enable_debug" id="enable_debug_checkbox" value="true"
+                   {% if settings.enable_debug %}checked{% endif %}
+                   onchange="onDebugToggle(this)"
+                   class="w-4 h-4 rounded border-border bg-panel">
+            <div>
+              <span class="text-sm">Enable debug log</span>
+              <p class="text-xs text-muted">Shows a debug panel in the journal editor. Disable for normal use.</p>
+            </div>
+          </label>
+          <div id="debug-warning"
+               class="{% if not settings.enable_debug %}hidden {% endif %}rounded border border-red-800 bg-red-950/30 px-4 py-3">
+            <p class="text-sm text-red-300 font-medium">⚠ Security warning: debug mode is active</p>
+            <p class="text-xs text-red-200/70 mt-1">
+              While debug is enabled, a <strong>plain-text (unencrypted)</strong> copy of everything
+              you dictate is written to <code class="font-mono">{{ settings.journal_dir }}/debug/</code>.
+              Disable debug mode before writing anything sensitive.
+            </p>
+          </div>
         </div>
-      </label>
+      </div>
     </section>
 
     <div class="flex items-center gap-4 pt-2">
@@ -140,4 +261,42 @@
   </section>
 
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onDebugToggle(cb) {
+  const warning = document.getElementById('debug-warning');
+  if (cb.checked) {
+    const confirmed = confirm(
+      'Security warning\n\n' +
+      'Enabling debug mode will save an UNENCRYPTED plain-text copy of everything ' +
+      'you dictate to the debug folder next to your journal.\n\n' +
+      'Only enable this for troubleshooting. Disable it before writing anything sensitive.\n\n' +
+      'Continue?'
+    );
+    if (!confirmed) { cb.checked = false; return; }
+    warning.classList.remove('hidden');
+  } else {
+    warning.classList.add('hidden');
+  }
+}
+
+function copyCmd(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+async function saveAndClose() {
+  const form = document.getElementById('settings-form');
+  const fd = new FormData(form);
+  await fetch('/settings', { method: 'POST', body: fd }).catch(() => {});
+  window.location.href = '/journal';
+}
+
+</script>
 {% endblock %}

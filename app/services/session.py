@@ -20,6 +20,7 @@ class SessionData:
     x25519_pub: bytearray
     x25519_priv: bytearray
     key_dir: str
+    journal_dir: str
     last_activity: float = field(default_factory=time.monotonic)
 
     def touch(self) -> None:
@@ -53,7 +54,7 @@ def init_session_manager(secret_key: str) -> None:
     _serializer = URLSafeTimedSerializer(secret_key, salt="pq-journal-session")
 
 
-def create_session(keys: dict, key_dir: str) -> str:
+def create_session(keys: dict, key_dir: str, journal_dir: str) -> str:
     """
     Create a new session from decrypted key bytes.
     Returns a signed session token (stored in cookie).
@@ -68,6 +69,7 @@ def create_session(keys: dict, key_dir: str) -> str:
         x25519_pub=bytearray(keys["x25519_pub"]),
         x25519_priv=bytearray(keys["x25519_priv"]),
         key_dir=key_dir,
+        journal_dir=journal_dir,
     )
     return _serializer.dumps(session_id)
 
@@ -123,6 +125,13 @@ def _remove_session(session_id: str) -> None:
     session = _sessions.pop(session_id, None)
     if session:
         session.zero_keys()
+    if not _sessions:
+        # Last session gone — clear the DB encryption key from memory
+        try:
+            from app.models.db import clear_db_encryption_key
+            clear_db_encryption_key()
+        except Exception:
+            pass
 
 
 def _make_session_id() -> str:

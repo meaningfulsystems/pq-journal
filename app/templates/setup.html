@@ -10,19 +10,26 @@
 
   {% if result %}
   <!-- Success state -->
-  <div class="mb-6 px-5 py-4 rounded border border-green-800 bg-green-950/50 text-sm space-y-2">
-    <p class="text-green-300 font-medium">✓ Keys generated successfully</p>
-    <p class="text-green-400/80 text-xs">Algorithm: ML-KEM-1024 + X25519</p>
-    <p class="text-green-400/80 text-xs font-mono">
-      KEM fingerprint: {{ result.kem_fingerprint }}
-    </p>
-    <p class="text-green-400/80 text-xs font-mono">
-      X25519 fingerprint: {{ result.x25519_fingerprint }}
-    </p>
+  <div class="mb-6 px-5 py-4 rounded border border-green-800 bg-green-950/50 text-sm space-y-3">
+    <p class="text-green-300 font-medium text-base">&#x2713; Keys generated successfully</p>
+    <div class="space-y-1 text-xs font-mono">
+      <div class="flex gap-2">
+        <span class="text-green-600 shrink-0">Keys saved to</span>
+        <span class="text-green-300 break-all">{{ result.key_dir if result.key_dir else '(see above)' }}</span>
+      </div>
+      <div class="flex gap-2">
+        <span class="text-green-600 shrink-0">Journal folder</span>
+        <span class="text-green-300 break-all">{{ default_journal_dir }}</span>
+      </div>
+    </div>
+    <p class="text-green-400/70 text-xs">Algorithm: ML-KEM-1024 + X25519 · AES-256-GCM</p>
+    <p class="text-green-400/60 text-xs font-mono">KEM: {{ result.kem_fingerprint }}</p>
+    <p class="text-green-400/60 text-xs font-mono">X25519: {{ result.x25519_fingerprint }}</p>
+    <p class="text-yellow-400/80 text-xs">&#x26A0;&#xFE0F; Store your key directory safely — without it you cannot access your journal.</p>
   </div>
   <a href="/unlock"
      class="block w-full py-2.5 bg-white text-black rounded font-medium text-sm text-center hover:bg-gray-100 transition-colors">
-    Go to Unlock
+    Go to Unlock →
   </a>
 
   {% else %}
@@ -70,6 +77,24 @@
       <p class="text-xs text-muted mt-1">Directory will be created if it doesn't exist</p>
     </div>
 
+    <!-- Journal directory -->
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Journal Directory</label>
+      <div class="flex gap-2">
+        <input type="text" id="journal_dir" name="journal_dir"
+               value="{{ default_journal_dir }}"
+               placeholder="~/MeaningfulJournal"
+               class="flex-1 bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+               required>
+        <button type="button"
+                onclick="openJournalDirBrowser()"
+                class="px-3 py-2 border border-border rounded text-xs text-subtle hover:border-subtle hover:text-primary transition-colors">
+          Browse
+        </button>
+      </div>
+      <p class="text-xs text-muted mt-1">Where your encrypted journal entries will be stored</p>
+    </div>
+
     <!-- Passphrase -->
     <div>
       <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Passphrase</label>
@@ -102,6 +127,33 @@
   {% endif %}
 </div>
 
+<!-- Journal Directory Browser Modal -->
+<div id="journal-dir-modal"
+     class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-panel border border-border rounded-lg w-full max-w-xl max-h-[70vh] flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+      <span class="text-sm font-medium">Select Journal Directory</span>
+      <button onclick="closeJournalDirBrowser()" class="text-subtle hover:text-primary text-lg leading-none">×</button>
+    </div>
+    <div class="flex items-center gap-2 px-3 py-2 border-b border-border">
+      <button id="journal-up-btn" onclick="journalGoUp()" title="Go up one level"
+              class="shrink-0 px-2 py-1 text-xs border border-border rounded text-subtle hover:border-subtle hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-default">
+        ↑ Up
+      </button>
+      <span id="journal-browser-path" class="text-xs text-subtle font-mono truncate flex-1"></span>
+    </div>
+    <div id="journal-browser-contents" class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5"></div>
+    <div class="px-4 py-3 border-t border-border flex justify-between items-center">
+      <span class="text-xs text-subtle" id="journal-browser-selected">No directory selected</span>
+      <div class="flex gap-2">
+        <button onclick="closeJournalDirBrowser()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">Cancel</button>
+        <button onclick="journalNewFolder()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">+ New Folder</button>
+        <button onclick="selectJournalDir()" class="px-3 py-1.5 text-xs bg-white text-black rounded hover:bg-gray-100 transition-colors">Select This Directory</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- File Browser Modal (same as unlock.html) -->
 <div id="file-browser-modal"
      class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -110,12 +162,19 @@
       <span class="text-sm font-medium">Select Key Directory</span>
       <button onclick="closeFileBrowser()" class="text-subtle hover:text-primary text-lg leading-none">×</button>
     </div>
-    <div id="browser-path" class="px-4 py-2 text-xs text-subtle font-mono border-b border-border truncate"></div>
+    <div class="flex items-center gap-2 px-3 py-2 border-b border-border">
+      <button id="key-up-btn" onclick="keyGoUp()" title="Go up one level"
+              class="shrink-0 px-2 py-1 text-xs border border-border rounded text-subtle hover:border-subtle hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-default">
+        ↑ Up
+      </button>
+      <span id="browser-path" class="text-xs text-subtle font-mono truncate flex-1"></span>
+    </div>
     <div id="browser-contents" class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5"></div>
     <div class="px-4 py-3 border-t border-border flex justify-between items-center">
       <span class="text-xs text-subtle" id="browser-selected">No directory selected</span>
       <div class="flex gap-2">
         <button onclick="closeFileBrowser()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">Cancel</button>
+        <button onclick="newFolder()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">+ New Folder</button>
         <button onclick="selectCurrentDir()" class="px-3 py-1.5 text-xs bg-white text-black rounded hover:bg-gray-100 transition-colors">Select</button>
       </div>
     </div>
@@ -126,6 +185,7 @@
 {% block scripts %}
 <script>
 let currentBrowserPath = '';
+let currentBrowserParent = null;
 async function openFileBrowser() {
   document.getElementById('file-browser-modal').classList.remove('hidden');
   const res = await fetch('/api/home');
@@ -139,28 +199,88 @@ function selectCurrentDir() {
   document.getElementById('key_dir').value = currentBrowserPath + '/meaningful-journal-keys';
   closeFileBrowser();
 }
-async function browseTo(path) {
-  currentBrowserPath = path;
+function keyGoUp() { if (currentBrowserParent) browseTo(currentBrowserParent); }
+
+// ── Journal directory browser ────────────────────────────────────────────────
+let journalDirBrowserPath = '';
+let journalDirBrowserParent = null;
+async function openJournalDirBrowser() {
+  document.getElementById('journal-dir-modal').classList.remove('hidden');
+  const res = await fetch('/api/home');
+  const data = await res.json();
+  await journalBrowseTo(data.path);
+}
+function closeJournalDirBrowser() {
+  document.getElementById('journal-dir-modal').classList.add('hidden');
+}
+function selectJournalDir() {
+  document.getElementById('journal_dir').value = journalDirBrowserPath;
+  closeJournalDirBrowser();
+}
+function journalGoUp() { if (journalDirBrowserParent) journalBrowseTo(journalDirBrowserParent); }
+async function journalNewFolder() {
+  const name = prompt('New folder name:');
+  if (!name) return;
+  const res = await fetch('/api/mkdir', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({parent: journalDirBrowserPath, name: name.trim()})});
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+  await journalBrowseTo(data.path);
+}
+async function journalBrowseTo(path) {
   const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
   const data = await res.json();
+  journalDirBrowserPath = data.current;
+  journalDirBrowserParent = data.parent || null;
+  document.getElementById('journal-browser-path').textContent = data.current;
+  document.getElementById('journal-browser-selected').textContent = data.current;
+  document.getElementById('journal-up-btn').disabled = !journalDirBrowserParent;
+  const container = document.getElementById('journal-browser-contents');
+  container.innerHTML = '';
+  if (data.error) { container.innerHTML = `<p class="text-red-400 text-xs px-2">${data.error}</p>`; return; }
+  for (const dir of data.dirs) {
+    const el = document.createElement('button');
+    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-primary hover:bg-white/5 transition-colors flex items-center gap-2';
+    el.innerHTML = `<span class="text-subtle">▶</span> ${dir.name}/`;
+    el.onclick = () => journalBrowseTo(dir.path);
+    container.appendChild(el);
+  }
+  if (data.dirs.length === 0) {
+    container.innerHTML = '<p class="text-xs text-muted px-3 py-2">Empty directory</p>';
+  }
+}
+
+async function newFolder() {
+  const name = prompt('New folder name:');
+  if (!name) return;
+  const res = await fetch('/api/mkdir', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({parent: currentBrowserPath, name: name.trim()})
+  });
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+  await browseTo(data.path);
+}
+async function browseTo(path) {
+  const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
+  const data = await res.json();
+  currentBrowserPath = data.current;
+  currentBrowserParent = data.parent || null;
   document.getElementById('browser-path').textContent = data.current;
   document.getElementById('browser-selected').textContent = data.current;
+  document.getElementById('key-up-btn').disabled = !currentBrowserParent;
   const container = document.getElementById('browser-contents');
   container.innerHTML = '';
   if (data.error) { container.innerHTML = `<p class="text-red-400 text-xs px-2">${data.error}</p>`; return; }
-  if (data.parent) {
-    const el = document.createElement('button');
-    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-subtle hover:bg-white/5 transition-colors flex items-center gap-2';
-    el.innerHTML = '<span class="text-muted">↑</span> ..';
-    el.onclick = () => browseTo(data.parent);
-    container.appendChild(el);
-  }
   for (const dir of data.dirs) {
     const el = document.createElement('button');
     el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-primary hover:bg-white/5 transition-colors flex items-center gap-2';
     el.innerHTML = `<span class="text-subtle">▶</span> ${dir.name}/`;
     el.onclick = () => browseTo(dir.path);
     container.appendChild(el);
+  }
+  if (data.dirs.length === 0) {
+    container.innerHTML = '<p class="text-xs text-muted px-3 py-2">Empty directory</p>';
   }
 }
 </script>

@@ -5,8 +5,12 @@
 <div class="flex gap-6">
   <!-- Main editor -->
   <div class="flex-1 min-w-0">
+    <div class="flex justify-center mb-4">
+      <img src="/static/img/quantumlock.png" alt="PQ Journal" style="max-width:150px;width:100%">
+    </div>
+
     <div class="flex items-center justify-between mb-5">
-      <a href="/journal" class="text-xs text-subtle hover:text-primary transition-colors">← Journal</a>
+      <a href="/journal" class="text-xs text-subtle hover:text-accent transition-colors">← Journal</a>
       {% if entry %}
       <span class="text-xs text-muted">Last edited {{ entry.modified[:10] }}</span>
       {% endif %}
@@ -43,7 +47,7 @@
       <textarea name="body" id="entry-body"
                 placeholder="Begin writing, or click Record to dictate..."
                 rows="20"
-                class="w-full bg-transparent border-none outline-none text-sm text-primary placeholder-muted resize-none leading-relaxed focus:outline-none"
+                class="w-full bg-transparent border-none outline-none text-sm text-sky-200 placeholder-muted resize-none leading-relaxed focus:outline-none"
                 >{{ entry.body if entry else '' }}</textarea>
 
       <!-- Hidden fields for emotion data (updated by Analyze or recorder) -->
@@ -56,7 +60,7 @@
       <input type="hidden" id="face-emotion" name="face_emotion" value="">
 
       <div class="flex items-center justify-between pt-4 border-t border-border">
-        <div class="flex gap-2">
+        <div class="flex items-center gap-3 flex-wrap">
           {% if entry %}
           <a href="/journal/{{ entry.id }}/export?format=md"
              class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">
@@ -67,6 +71,8 @@
             Export PDF
           </a>
           {% endif %}
+          <span class="text-xs text-green-500/70" title="ML-KEM-1024 + X25519 · AES-256-GCM encrypted locally">&#x1F512; Encrypted</span>
+          <span id="save-status" class="text-xs text-muted italic"></span>
         </div>
         <button type="submit"
                 class="px-5 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-100 transition-colors">
@@ -79,50 +85,213 @@
   <!-- Sidebar: emotion + prompt -->
   <div class="w-64 shrink-0 space-y-4">
 
-    <!-- Analyze Emotion button -->
-    <div>
-      <button type="button"
-              hx-post="/emotion/analyze"
-              hx-include="#entry-body,#vad-summary,#face-emotion"
-              hx-target="#emotion-panel"
-              hx-swap="outerHTML"
-              hx-indicator="#emotion-spinner"
-              class="w-full px-3 py-2 text-xs border border-border rounded text-subtle hover:text-primary hover:border-muted transition-colors flex items-center justify-center gap-2">
-        <span>Analyze Emotion</span>
-        <span id="emotion-spinner" class="htmx-indicator text-muted">…</span>
-      </button>
+    {% if enable_webcam %}
+    <!-- Webcam panel — top of sidebar -->
+    <div id="webcam-panel" class="space-y-2">
+      <video id="webcam-video" autoplay muted playsinline
+             class="w-full rounded border border-border hidden"
+             style="max-height:160px;object-fit:cover"></video>
+      <canvas id="webcam-canvas" class="hidden" width="320" height="240"></canvas>
+      <!-- Real-time emotion under webcam -->
+      <div id="realtime-emotion-display"
+           class="text-center py-2 px-3 rounded border border-border bg-panel min-h-[2.5rem] flex items-center justify-center">
+        <span id="realtime-emotion-text" class="text-sm text-subtle italic">—</span>
+      </div>
+      <div id="face-emotion-label" class="text-xs text-muted italic text-center"></div>
     </div>
+    {% else %}
+    <!-- Real-time emotion display (voice only, no webcam) -->
+    <div id="realtime-emotion-display"
+         class="text-center py-2 px-3 rounded border border-border bg-panel min-h-[2.5rem] items-center justify-center hidden">
+      <span id="realtime-emotion-text" class="text-sm text-subtle italic">—</span>
+    </div>
+    {% endif %}
+
+    <!-- Emotion panel (auto-updated, replaces itself via HTMX) -->
+    <div id="emotion-panel" class="space-y-4 hidden">
+      <div class="text-xs text-subtle uppercase tracking-widest">Emotion</div>
+      <div id="emotion-results" class="space-y-2"></div>
+    </div>
+
+    <!-- Hidden analyze trigger button -->
+    <button id="analyze-btn" type="button"
+            hx-post="/emotion/analyze"
+            hx-include="#entry-body,#vad-summary,#face-emotion"
+            hx-target="#emotion-panel"
+            hx-swap="outerHTML"
+            hx-indicator="#emotion-spinner"
+            class="w-full px-3 py-1.5 text-xs border border-border rounded text-muted hover:text-primary hover:border-muted transition-colors flex items-center justify-center gap-2">
+      <span>Analyze Emotion</span>
+      <span id="emotion-spinner" class="htmx-indicator text-muted">…</span>
+    </button>
 
     <!-- Prompt sidebar -->
     <div id="prompt-container">
       {% include "components/prompt_sidebar.html" %}
     </div>
 
-    <!-- Emotion panel (replaced by HTMX after Analyze) -->
-    <div id="emotion-panel" class="space-y-4 hidden">
-      <div class="text-xs text-subtle uppercase tracking-widest">Emotion</div>
-      <div id="emotion-results" class="space-y-2"></div>
-    </div>
-
-    {% if enable_webcam %}
-    <!-- Webcam panel (Slice 5) -->
-    <div id="webcam-panel" class="space-y-2">
-      <div class="text-xs text-subtle uppercase tracking-widest">Webcam</div>
-      <video id="webcam-video" autoplay muted playsinline
-             class="w-full rounded border border-border hidden"
-             style="max-height:120px;object-fit:cover"></video>
-      <canvas id="webcam-canvas" class="hidden" width="320" height="240"></canvas>
-      <div id="face-emotion-label" class="text-xs text-muted italic"></div>
-    </div>
-    {% endif %}
-
   </div>
 </div>
+
+{% if enable_debug %}
+<!-- Debug panel -->
+<div class="mt-8 border-t border-yellow-900/30 pt-4">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-xs text-yellow-500 font-mono uppercase tracking-widest">Debug Log</span>
+    <div class="flex gap-2">
+      <button type="button" onclick="copyDebugLog()"
+              class="px-2 py-1 text-xs border border-yellow-900 rounded text-yellow-500 hover:bg-yellow-900/20 transition-colors">Copy</button>
+      <button type="button" onclick="clearDebugLog()"
+              class="px-2 py-1 text-xs border border-border rounded text-muted hover:text-primary transition-colors">Clear</button>
+    </div>
+  </div>
+  <textarea id="debug-log" readonly rows="12"
+            class="w-full bg-black/40 border border-yellow-900/50 rounded px-3 py-2 text-xs font-mono text-yellow-200/80 resize-y focus:outline-none"
+            placeholder="Debug output will appear here during recording..."></textarea>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
-<script>const ENABLE_WEBCAM = {{ enable_webcam | tojson }};</script>
+<script>const ENABLE_WEBCAM = {{ enable_webcam | tojson }};
+const ENABLE_DEBUG = {{ enable_debug | tojson }};</script>
 <script src="/static/js/recorder.js"></script>
+<script>
+// ── Auto-save ────────────────────────────────────────────────────────────────
+let _autoSaveTimer = null;
+let _currentEntryId = '{{ entry.id if entry else "" }}';
+
+function _scheduleAutoSave() {
+  const status = document.getElementById('save-status');
+  if (status) status.textContent = 'Unsaved…';
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(_doAutoSave, 5000);
+}
+
+async function _doAutoSave() {
+  const status = document.getElementById('save-status');
+  if (status) status.textContent = 'Saving…';
+  const form = document.getElementById('entry-form');
+  const fd = new FormData(form);
+  fd.set('entry_id', _currentEntryId);
+  try {
+    const res = await fetch('/journal/autosave', { method: 'POST', body: fd });
+    const data = await res.json();
+    _currentEntryId = data.id;
+    if (data.created) {
+      // Update URL and form action without reload
+      history.replaceState(null, '', `/journal/${data.id}/edit`);
+      form.setAttribute('hx-put', `/journal/${data.id}`);
+      form.removeAttribute('hx-post');
+      htmx.process(form);
+    }
+    if (status) {
+      status.textContent = `Saved → ${data.file_path}`;
+      setTimeout(() => { status.textContent = ''; }, 5000);
+    }
+  } catch (_) {
+    if (status) status.textContent = 'Save failed';
+  }
+}
+
+document.getElementById('entry-form').addEventListener('input', _scheduleAutoSave);
+
+// ── Auto-analyze emotion ──────────────────────────────────────────────────────
+let _analyzeTimer = null;
+
+function triggerAnalyze() {
+  const body = document.getElementById('entry-body');
+  if (!body || body.value.trim().length < 20) return;
+  const btn = document.getElementById('analyze-btn');
+  if (btn) htmx.trigger(btn, 'click');
+}
+
+function scheduleAnalyze() {
+  if (_analyzeTimer) clearTimeout(_analyzeTimer);
+  _analyzeTimer = setTimeout(triggerAnalyze, 8000);
+}
+
+document.getElementById('entry-body').addEventListener('input', scheduleAnalyze);
+
+// Called by recorder.js after recording stops
+function onRecordingStop() {
+  setTimeout(triggerAnalyze, 1500); // small delay to let final transcript land
+  {% if enable_webcam %}
+  // webcam cleanup handled in webcam.js
+  {% endif %}
+}
+
+// Show realtime emotion from VAD (called by recorder.js)
+function updateRealtimeEmotion(label) {
+  const el = document.getElementById('realtime-emotion-text');
+  const container = document.getElementById('realtime-emotion-display');
+  if (!el) return;
+  if (label) {
+    el.textContent = label;
+    if (container) container.classList.remove('hidden');
+  }
+}
+
+// ── Debug log ─────────────────────────────────────────────────────────────────
+const _DBG_KEY = 'pqj_debug_log';
+
+// Generate a fixed filename for this browser session (YYYYMMDD-HHMM)
+function _debugFilename() {
+  let name = sessionStorage.getItem('pqj_debug_filename');
+  if (!name) {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    name = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}_debug.txt`;
+    sessionStorage.setItem('pqj_debug_filename', name);
+  }
+  return name;
+}
+
+let _dbgSaveTimer = null;
+function _scheduleDebugSave() {
+  if (_dbgSaveTimer) clearTimeout(_dbgSaveTimer);
+  _dbgSaveTimer = setTimeout(_saveDebugToDisk, 2000);
+}
+async function _saveDebugToDisk() {
+  const content = sessionStorage.getItem(_DBG_KEY) || '';
+  if (!content) return;
+  try {
+    await fetch('/api/debug/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: _debugFilename(), content }),
+    });
+  } catch (e) { /* silently ignore disk errors */ }
+}
+
+function dbg(msg) {
+  if (!ENABLE_DEBUG) return;
+  const ts = new Date().toLocaleTimeString();
+  const line = `[${ts}] ${msg}\n`;
+  const existing = sessionStorage.getItem(_DBG_KEY) || '';
+  sessionStorage.setItem(_DBG_KEY, existing + line);
+  const el = document.getElementById('debug-log');
+  if (el) { el.value = sessionStorage.getItem(_DBG_KEY); el.scrollTop = el.scrollHeight; }
+  _scheduleDebugSave();
+}
+function copyDebugLog() {
+  const text = sessionStorage.getItem(_DBG_KEY) || '';
+  navigator.clipboard.writeText(text);
+  const btns = document.querySelectorAll('[onclick="copyDebugLog()"]');
+  btns.forEach(b => { const o = b.textContent; b.textContent = 'Copied!'; setTimeout(() => b.textContent = o, 1500); });
+}
+function clearDebugLog() {
+  sessionStorage.removeItem(_DBG_KEY);
+  sessionStorage.removeItem('pqj_debug_filename');
+  const el = document.getElementById('debug-log');
+  if (el) el.value = '';
+}
+// Restore log on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('debug-log');
+  if (el) { el.value = sessionStorage.getItem(_DBG_KEY) || ''; el.scrollTop = el.scrollHeight; }
+});
+</script>
 {% if enable_webcam %}
 <script src="/static/js/webcam.js"></script>
 {% endif %}

@@ -48,6 +48,7 @@ def _try_load_oqs() -> bool:
             glob.glob("/usr/lib*/liboqs*")
             + glob.glob("/usr/local/lib*/liboqs*")
             + glob.glob("/home/*/_oqs/lib*/liboqs*")
+            + glob.glob("/opt/homebrew/lib*/liboqs*")
         )
         if not candidates:
             return False

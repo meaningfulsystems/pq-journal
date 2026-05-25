@@ -51,9 +51,12 @@ async def analyze_text(
         )
 
     loop = asyncio.get_event_loop()
+    cfg = get_settings()
 
     # Classify paragraphs (runs in thread pool — HF model is CPU-bound)
-    paragraphs = await loop.run_in_executor(None, text_svc.classify_paragraphs, body)
+    paragraphs = await loop.run_in_executor(
+        None, text_svc.classify_paragraphs, body, cfg.ollama_url, cfg.ollama_model
+    )
 
     try:
         vad = json.loads(vad_summary) if vad_summary.strip() else {}
@@ -74,7 +77,6 @@ async def analyze_text(
     overall_rule = text_svc.synthesize_overall_emotion(paragraphs, vad, face_str)
 
     # Optionally upgrade with LLM synthesis (non-blocking, short timeout)
-    cfg = get_settings()
     overall = overall_rule
     try:
         llm_result = await asyncio.wait_for(
@@ -105,6 +107,44 @@ async def analyze_text(
             "empty": False,
         },
     )
+
+
+@router.post("/live_summary")
+async def live_emotion_summary(
+    request: Request,
+    vad_v: float = Form(default=0.0),
+    vad_a: float = Form(default=0.0),
+    vad_d: float = Form(default=0.0),
+    face_emotion: str = Form(default=""),
+    transcript: str = Form(default=""),
+    session: SessionData = Depends(require_unlocked),
+):
+    """Generate a rich emotional summary from accumulated VAD + face data."""
+    cfg = get_settings()
+    loop = asyncio.get_event_loop()
+    source = "llm"
+    try:
+        summary = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                llm_svc.synthesize_live_emotion,
+                vad_v, vad_a, vad_d,
+                face_emotion or None,
+                cfg.ollama_url,
+                cfg.ollama_model,
+                transcript,
+            ),
+            timeout=10.0,
+        )
+        # Detect if LLM fell back to rule-based
+        fallback_check = llm_svc._live_fallback(vad_v, vad_a, vad_d, face_emotion or None)
+        if summary == fallback_check:
+            source = "fallback"
+    except (asyncio.TimeoutError, Exception) as e:
+        logger.warning(f"live_summary error: {e}")
+        summary = llm_svc._live_fallback(vad_v, vad_a, vad_d, face_emotion or None)
+        source = "fallback"
+    return JSONResponse({"summary": summary, "source": source})
 
 
 @router.post("/video/frame")

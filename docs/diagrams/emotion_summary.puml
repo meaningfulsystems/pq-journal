@@ -1,0 +1,108 @@
+@startuml emotion_summary
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 11
+skinparam ArrowColor #444444
+skinparam ActivityBorderColor #666666
+skinparam ActivityBackgroundColor #e8f0fe
+skinparam ActivityDiamondBackgroundColor #fff3e0
+skinparam ActivityDiamondBorderColor #e65100
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #ccaa00
+skinparam PartitionBorderColor #888888
+skinparam PartitionBackgroundColor #fafafa
+
+title PQ Journal — Emotion Summary Algorithm
+
+|Browser|
+|Server|
+
+|Browser|
+start
+:User clicks **Record**;
+:AudioWorklet captures PCM\n(16kHz, Int16 mono);
+:Send PCM chunks via WebSocket;
+
+|Server|
+:Receive PCM frames;
+:ToneEstimator every 8 frames (~500ms)\ncomputes Valence (V), Arousal (A), Dominance (D);
+:Send vad message to client\n{V, A, D, label};
+
+|Browser|
+:Show live label in recording panel\n(simple rule: A/V thresholds);
+:Accumulate VAD in _emotionWindow;
+
+' ── LIVE SUMMARY PATH (every 60s) ──────────────────────────────
+if (120 VAD readings collected? (~60s)) then (yes)
+  :Average V, A, D over last 60s;
+  :POST /emotion/live_summary;
+
+  |Server|
+  if (Ollama reachable?) then (yes)
+    :Call Ollama /api/generate\nPrompt: VAD values + face\nask for 4-8 word phrase;
+    note right
+      Example output:
+      "tired but quietly hopeful"
+      "focused and a little restless"
+    end note
+  else (no / timeout 10s)
+    :_live_fallback(V, A, D)\nRule-based phrases:\nA<0.20 => "subdued and still"\nA<0.45, V>0.3 => "calm and content"\nA>=0.65, V>=0 => "energetic and expressive"\netc.;
+  endif
+  :Return summary text;
+
+  |Browser|
+  :Store in _lastLlmEmotionText;
+  :Ticker scrolls phrase under waveform\n(updates at most every 5s);
+else (no)
+endif
+
+' ── TRANSCRIPTION + INLINE TAG ──────────────────────────────────
+|Server|
+:1s silence detected\nRun faster-whisper on buffer;
+:Send final message {text} to client;
+
+|Browser|
+:Append transcribed text to textarea;
+:Build emotion tag:\n  text = LLM phrase OR VAD label OR "neutral"\n  machine = "voice V:x.xx A:y.yy D:z.zz";
+:Append to textarea:\n[Emotion summary: {text} {machine}];
+
+' ── ANALYZE BUTTON PATH ──────────────────────────────────────────
+|Browser|
+:Analyze Emotion clicked\n(manual, or auto 8s after typing stops);
+:POST /emotion/analyze\n{body, vad_summary, face_emotion};
+
+|Server|
+if (HuggingFace transformers installed?) then (yes)
+  :j-hartmann distilroberta model\nPer-paragraph scores:\njoy/sadness/anger/fear/disgust/neutral/surprise;
+else (no)
+  if (Ollama reachable?) then (yes)
+    :Ollama JSON classification\nReturns score dict per paragraph;
+  else (no)
+    :Keyword heuristic\nBaseline neutral=0.30\nCounts emotion keywords in text;
+    note right
+      WARNING: Returns "neutral"
+      if no keywords matched.
+      This is why you see "neutral"
+      when Ollama is not running.
+    end note
+  endif
+endif
+:synthesize_overall_emotion()\nAverage scores + VAD phrase\n(rule-based);
+if (Ollama reachable?) then (yes)
+  :llm_svc.synthesize_emotion()\nPrompt: para labels + VAD + face\nReturns full sentence;
+  note right
+    Example output:
+    "She seems reflective and a little
+    weary, but grounded in the moment."
+  end note
+else (no)
+  :Raw context string\ne.g. "text emotion is calm;\nvoice tone is warm";
+endif
+:Return emotion panel HTML;
+
+|Browser|
+:Display per-paragraph bars\n+ overall in sidebar;
+stop
+
+@enduml

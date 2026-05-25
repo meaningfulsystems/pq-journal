@@ -1,0 +1,73 @@
+@startuml deployment_view
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 11
+skinparam ArrowColor #444444
+skinparam NodeBorderColor #666666
+skinparam NodeBackgroundColor #e8f4f8
+skinparam ArtifactBorderColor #888888
+skinparam ArtifactBackgroundColor #f5f5f5
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #ccaa00
+skinparam CloudBorderColor #888888
+skinparam CloudBackgroundColor #f0f0f0
+
+title PQ Journal — Deployment View
+
+node "User's Computer" as machine {
+
+  node "Web Browser\n(localhost)" as browser {
+    artifact "HTML + HTMX\nJavaScript" as js
+    artifact "Web Audio API\n(AudioWorklet)" as audio
+    artifact "WebSocket Client" as wsc
+  }
+
+  node "PQ Journal Server\n(localhost:8000)" as server {
+    artifact "FastAPI\n(ASGI / uvicorn)" as fastapi
+    artifact "Session Store\n(in-memory dict)" as mem_store
+    artifact "DB Encryption Key\n(in-memory)" as mem_key
+  }
+
+  node "Journal Directory\n(user chosen path)" as journal_dir {
+    artifact "entries/\n*.pqj (encrypted)" as entries
+    artifact ".db/\njournal.sqlite (encrypted cols)" as sqlite
+    artifact "settings/\nsettings.yaml (no paths)" as yaml
+    artifact "debug/ (optional)\n*.txt (plaintext!)" as debug
+  }
+
+  node "Key Directory\n(typically USB drive)" as key_dir {
+    artifact "kem_private.key\n(PBKDF2 + AES-GCM)" as kem
+    artifact "x25519_private.key\n(PBKDF2 + AES-GCM)" as x25519
+  }
+
+  node "Optional: Ollama\n(localhost:11434)" as ollama {
+    artifact "LLM Model\n(phi3 / llama3.2 / etc)" as llm_model
+  }
+
+  node "Optional: AI Models\n(local cache)" as models {
+    artifact "Whisper STT\n(~800MB)" as whisper_model
+    artifact "HF Emotion\nDistilRoBERTa\n(~250MB)" as hf_model
+    artifact "FER ResNet50\n(optional)" as fer_model
+  }
+}
+
+browser --> server : "HTTP/WS\nlocalhost:8000"
+server --> journal_dir : "read/write\nencrypted files"
+server --> key_dir : "read keys\nat login"
+server ..> ollama : "LLM requests\n(optional)"
+server ..> models : "model inference\n(optional)"
+
+note bottom of key_dir
+  Separate from journal.
+  Attacker finding journal
+  cannot decrypt without keys.
+end note
+
+note bottom of server
+  App root contains NO path
+  information after architecture
+  change (R007).
+end note
+
+@enduml

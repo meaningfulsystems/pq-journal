@@ -1,0 +1,99 @@
+@startuml encryption_flow
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 11
+skinparam ArrowColor #444444
+skinparam ActivityBorderColor #666666
+skinparam ActivityBackgroundColor #e8f0fe
+skinparam ActivityDiamondBackgroundColor #fff3e0
+skinparam ActivityDiamondBorderColor #e65100
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #ccaa00
+skinparam PartitionBorderColor #888888
+skinparam PartitionBackgroundColor #fafafa
+
+title PQ Journal — Entry Encryption / Decryption Flow (R028–R038)
+
+|Encryption|
+start
+:plaintext entry JSON;
+
+:ML-KEM-1024 Encapsulation
+  input: recipient's kem_pub
+  output: kem_ct (2400 bytes), kem_ss (32 bytes);
+
+note right
+  NIST FIPS 203
+  Post-quantum secure
+  against quantum computers
+end note
+
+:Generate ephemeral X25519 keypair
+  ephem_priv, ephem_pub (R030);
+
+:X25519 ECDH
+  input: ephem_priv × recipient's x25519_pub
+  output: x25519_ss (32 bytes);
+
+:HKDF-SHA256 Key Derivation (R034)
+  input:  kem_ss || x25519_ss
+  info:   "pq-journal-entry"
+  length: 32 bytes
+  output: entry_key (AES-256);
+
+:Random 12-byte nonce (R033);
+
+:AES-256-GCM Encrypt (R028)
+  key:   entry_key
+  nonce: 12 bytes
+  input: plaintext
+  output: ciphertext + 16-byte tag;
+
+:HMAC-SHA256 over all blob fields (R029)
+  fields: alg, kem_ct, x25519_ephemeral_pub,
+          nonce, tag, ct
+  output: hmac (32 bytes);
+
+:Write JSON blob to {entry_id}.pqj
+  chmod 0o600 (R037)
+  {version, alg, kem_ct, x25519_ephemeral_pub,
+   nonce, tag, ct, hmac};
+
+stop
+
+|Decryption|
+start
+:Read .pqj file;
+:Parse JSON blob;
+
+:HMAC-SHA256 Verify (R029, R038)
+  using hmac.compare_digest()
+  ← constant time;
+
+if (HMAC valid?) then (no)
+  :raise ValueError
+  "HMAC verification failed —
+   entry may be tampered";
+  stop
+else (yes)
+endif
+
+:ML-KEM-1024 Decapsulation
+  input: session kem_priv, kem_ct
+  output: kem_ss (same as encryption);
+
+:X25519 ECDH
+  input: session x25519_priv × x25519_ephemeral_pub
+  output: x25519_ss (same as encryption);
+
+:HKDF-SHA256 Key Derivation (same params → same key);
+
+:AES-256-GCM Decrypt
+  key: entry_key
+  nonce, tag, ct from blob
+  output: plaintext entry JSON;
+
+stop
+
+@enduml

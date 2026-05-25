@@ -31,7 +31,7 @@ FastAPI app
     └── templates/  Jinja2 + HTMX partials
 ```
 
-Entry files (`.pqj`) live at `~/MeaningfulJournal/entries/<uuid>.pqj`. Each is an independent encrypted JSON blob. A SQLite index at `~/MeaningfulJournal/.db/journal.sqlite` stores only metadata (title, date, tags, emotion label — no body text).
+Entry files (`.pqj`) live at `{journal_dir}/entries/<uuid>.pqj`. Each is an independent encrypted JSON blob. The journal directory and key directory are entered fresh at every login — no paths are stored anywhere in the app. A SQLite index at `{journal_dir}/.db/journal.sqlite` stores encrypted metadata (title, date, tags, emotion label — body text never written to DB).
 
 ---
 
@@ -65,14 +65,11 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 pip install -r requirements.txt
 
-cp .env.example .env
-# Edit .env and set a strong SECRET_KEY, or let run.py generate one automatically
-
 python run.py
 # Open http://localhost:8000
 ```
 
-On first run, go to **Setup** (linked from the unlock screen) to generate your key pair and save it to a USB drive or a local directory.
+On first run, go to **Setup** (linked from the unlock screen) to generate your key pair and save it to a USB drive or a local directory. The `SECRET_KEY` used for session signing is auto-generated at startup — no configuration required.
 
 ---
 
@@ -94,7 +91,7 @@ pip install -r requirements-optional.txt
 | `soundfile>=0.12` | Audio file upload transcription |
 
 **Webcam FER weights:**  
-The FER model expects `~/.pq-journal/fer_resnet50.pth` (ResNet50 fine-tuned on FER-2013). If absent, the feature is silently disabled. Enable webcam in `settings.yaml`:
+The FER model expects `~/.pq-journal/fer_resnet50.pth` (ResNet50 fine-tuned on FER-2013). If absent, the feature is silently disabled. Enable webcam in `{journal_dir}/settings/settings.yaml`:
 ```yaml
 enable_webcam: true
 ```
@@ -104,7 +101,7 @@ Install [Ollama](https://ollama.com) and pull a model:
 ```bash
 ollama pull llama3.2:3b
 ```
-Configure in `settings.yaml`:
+Configure in `{journal_dir}/settings/settings.yaml`:
 ```yaml
 ollama_url: http://localhost:11434
 ollama_model: llama3.2:3b
@@ -114,10 +111,9 @@ ollama_model: llama3.2:3b
 
 ## Configuration
 
-Copy `settings.yaml.example` to `settings.yaml` and edit:
+Settings are stored at `{journal_dir}/settings/settings.yaml` — inside your journal directory, not in the app root. On first unlock the app writes defaults; edit the file to customize:
 
 ```yaml
-journal_dir: ~/MeaningfulJournal   # Where entries and DB are stored
 auto_lock_minutes: 15              # Auto-lock after N minutes idle (0 = never)
 stt_model: large-v3-turbo          # faster-whisper model name
 enable_webcam: false               # Set true to enable webcam FER
@@ -125,9 +121,7 @@ ollama_url: http://localhost:11434
 ollama_model: llama3.2:3b
 ```
 
-All values can also be set as environment variables (uppercase, e.g. `JOURNAL_DIR`). Environment variables override `settings.yaml`.
-
-See `.env.example` for the full list.
+All values can also be set as environment variables (uppercase). Environment variables override `settings.yaml`.
 
 ---
 
@@ -215,8 +209,9 @@ data/
   prompts.yaml          Reflective journal prompts (Logotherapy-based)
   emotion_matrix.json   VAD → emotion label grid
 docs/
-  pq-journal-web.md     Architecture document
-  decisions.md          Design decisions log
+  requirements.md       INCOSE requirements (R001-R100)
+  design.md             Design document with architecture diagrams
+  diagrams/             PlantUML source + rendered PNGs
 archive/                Original PyQt6 monolith (reference only)
 ```
 

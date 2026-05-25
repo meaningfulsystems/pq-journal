@@ -10,11 +10,12 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Cookie, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Cookie, Depends, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
-from app.dependencies import SESSION_COOKIE
+from app.dependencies import SESSION_COOKIE, require_unlocked
 from app.services import session as session_svc
+from app.services.session import SessionData
 from app.services.stt import get_active_engine, transcribe_audio_file, transcribe_pcm
 from app.services.tone import ToneEstimator
 from app.config import get_settings
@@ -28,9 +29,9 @@ BYTES_PER_SAMPLE = 2
 FRAME_SAMPLES = 1000
 FRAME_BYTES = FRAME_SAMPLES * BYTES_PER_SAMPLE  # 2000 bytes = 62.5ms
 
-# Silence detection: 32 frames × 62.5ms = 2.0s of quiet triggers transcription
+# Silence detection: 16 frames × 62.5ms = 1.0s of quiet triggers transcription
 SILENCE_RMS_THRESHOLD = 0.015
-SILENCE_FRAMES_REQUIRED = 32
+SILENCE_FRAMES_REQUIRED = 16
 
 # Don't transcribe tiny buffers (less than 1s of audio)
 MIN_TRANSCRIBE_BYTES = SAMPLE_RATE * BYTES_PER_SAMPLE  # 32000 bytes
@@ -176,10 +177,11 @@ async def ws_record(websocket: WebSocket):
                     silence_frames = 0
                     tone.reset()
 
+                    await websocket.send_text(json.dumps({"type": "transcribing"}))
                     text = await run_transcription(pcm_snapshot)
                     if text:
                         await websocket.send_text(
-                            json.dumps({"type": "partial", "text": text})
+                            json.dumps({"type": "final", "text": text})
                         )
                     transcribing = False
 
@@ -194,7 +196,7 @@ async def ws_record(websocket: WebSocket):
 
 
 @router.post("/voice/upload")
-async def voice_upload(file: UploadFile):
+async def voice_upload(file: UploadFile, _session: SessionData = Depends(require_unlocked)):
     """
     Transcribe an uploaded audio file (WebM, MP3, WAV, OGG).
     Returns {"text": "...", "engine": "whisper|vosk|none"}.

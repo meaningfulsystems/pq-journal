@@ -5,14 +5,9 @@
 <div class="max-w-lg mx-auto mt-16">
   <!-- Header -->
   <div class="text-center mb-10">
-    <svg width="48" height="48" viewBox="0 0 100 100" fill="none" class="mx-auto mb-4">
-      <path d="M30 50 C30 30, 50 20, 70 30 C90 40, 90 60, 70 70 C50 80, 30 70, 30 50Z"
-            stroke="white" stroke-width="6" fill="none"/>
-      <path d="M70 50 C70 70, 50 80, 30 70 C10 60, 10 40, 30 30 C50 20, 70 30, 70 50Z"
-            stroke="white" stroke-width="6" fill="none" opacity="0.5"/>
-    </svg>
-    <h1 class="text-2xl font-light tracking-wide">PQ Journal</h1>
+    <img src="/static/img/quantumlock.png" alt="PQ Journal" class="mx-auto mb-4" style="max-width:390px;width:100%">
     <p class="text-sm text-subtle mt-1">Post-quantum encrypted journaling</p>
+    <p class="text-xs text-muted mt-2">Local only. Nothing leaves your machine. You can run offline.</p>
   </div>
 
   {% if error %}
@@ -22,6 +17,24 @@
   {% endif %}
 
   <form method="post" action="/unlock" class="space-y-5">
+
+    <!-- Journal directory -->
+    <div>
+      <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Journal Directory</label>
+      <div class="flex gap-2">
+        <input type="text" id="journal_dir" name="journal_dir"
+               value="{{ saved_journal_dir }}"
+               placeholder="/path/to/your/journal"
+               class="flex-1 bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
+               required>
+        <button type="button"
+                onclick="openFileBrowser('journal_dir')"
+                class="px-3 py-2 border border-border rounded text-xs text-subtle hover:border-subtle hover:text-primary transition-colors">
+          Browse
+        </button>
+      </div>
+    </div>
+
     <!-- Key directory -->
     <div>
       <label class="block text-xs text-subtle mb-2 uppercase tracking-widest">Key Directory</label>
@@ -39,7 +52,6 @@
       </div>
       {% endif %}
 
-      <!-- Path input + browse button -->
       <div class="flex gap-2">
         <input type="text" id="key_dir" name="key_dir"
                value="{{ saved_key_dir }}"
@@ -47,7 +59,7 @@
                class="flex-1 bg-panel border border-border rounded px-3 py-2 text-sm text-primary placeholder-muted focus:outline-none focus:border-subtle transition-colors"
                required>
         <button type="button"
-                onclick="openFileBrowser()"
+                onclick="openFileBrowser('key_dir')"
                 class="px-3 py-2 border border-border rounded text-xs text-subtle hover:border-subtle hover:text-primary transition-colors">
           Browse
         </button>
@@ -79,19 +91,31 @@
 <div id="file-browser-modal"
      class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-panel border border-border rounded-lg w-full max-w-xl max-h-[70vh] flex flex-col">
+
+    <!-- Header: title + close -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-border">
-      <span class="text-sm font-medium">Select Key Directory</span>
+      <span id="browser-title" class="text-sm font-medium">Select Directory</span>
       <button onclick="closeFileBrowser()" class="text-subtle hover:text-primary text-lg leading-none">×</button>
     </div>
 
-    <div id="browser-path" class="px-4 py-2 text-xs text-subtle font-mono border-b border-border truncate"></div>
+    <!-- Path bar with Up button -->
+    <div class="flex items-center gap-2 px-3 py-2 border-b border-border">
+      <button id="browser-up-btn"
+              onclick="goUp()"
+              title="Go up one level"
+              class="shrink-0 px-2 py-1 text-xs border border-border rounded text-subtle hover:border-subtle hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-default">
+        ↑ Up
+      </button>
+      <span id="browser-path" class="text-xs text-subtle font-mono truncate flex-1"></span>
+    </div>
 
     <div id="browser-contents" class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5"></div>
 
     <div class="px-4 py-3 border-t border-border flex justify-between items-center">
-      <span class="text-xs text-subtle" id="browser-selected">No directory selected</span>
-      <div class="flex gap-2">
+      <span class="text-xs text-subtle truncate" id="browser-selected">No directory selected</span>
+      <div class="flex gap-2 shrink-0">
         <button onclick="closeFileBrowser()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">Cancel</button>
+        <button onclick="newFolder()" class="px-3 py-1.5 text-xs border border-border rounded text-subtle hover:text-primary transition-colors">+ New Folder</button>
         <button onclick="selectCurrentDir()" class="px-3 py-1.5 text-xs bg-white text-black rounded hover:bg-gray-100 transition-colors">Select This Directory</button>
       </div>
     </div>
@@ -102,8 +126,13 @@
 {% block scripts %}
 <script>
 let currentBrowserPath = '';
+let currentBrowserParent = null;
+let _browserTarget = 'key_dir';
 
-async function openFileBrowser() {
+async function openFileBrowser(target) {
+  _browserTarget = target || 'key_dir';
+  const titles = { journal_dir: 'Select Journal Directory', key_dir: 'Select Key Directory' };
+  document.getElementById('browser-title').textContent = titles[_browserTarget] || 'Select Directory';
   document.getElementById('file-browser-modal').classList.remove('hidden');
   const res = await fetch('/api/home');
   const data = await res.json();
@@ -115,17 +144,26 @@ function closeFileBrowser() {
 }
 
 function selectCurrentDir() {
-  document.getElementById('key_dir').value = currentBrowserPath;
+  document.getElementById(_browserTarget).value = currentBrowserPath;
   closeFileBrowser();
 }
 
+async function goUp() {
+  if (currentBrowserParent) await browseTo(currentBrowserParent);
+}
+
 async function browseTo(path) {
-  currentBrowserPath = path;
   const res = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
   const data = await res.json();
 
+  currentBrowserPath = data.current;
+  currentBrowserParent = data.parent || null;
+
   document.getElementById('browser-path').textContent = data.current;
   document.getElementById('browser-selected').textContent = data.current;
+
+  const upBtn = document.getElementById('browser-up-btn');
+  upBtn.disabled = !currentBrowserParent;
 
   const container = document.getElementById('browser-contents');
   container.innerHTML = '';
@@ -133,15 +171,6 @@ async function browseTo(path) {
   if (data.error) {
     container.innerHTML = `<p class="text-red-400 text-xs px-2">${data.error}</p>`;
     return;
-  }
-
-  // Parent directory link
-  if (data.parent) {
-    const el = document.createElement('button');
-    el.className = 'w-full text-left px-3 py-1.5 rounded text-xs text-subtle hover:bg-white/5 transition-colors flex items-center gap-2';
-    el.innerHTML = '<span class="text-muted">↑</span> ..';
-    el.onclick = () => browseTo(data.parent);
-    container.appendChild(el);
   }
 
   // Directories
@@ -153,16 +182,22 @@ async function browseTo(path) {
     container.appendChild(el);
   }
 
-  if (data.dirs.length === 0 && data.files.length === 0) {
+  if (data.dirs.length === 0) {
     container.innerHTML = '<p class="text-xs text-muted px-3 py-2">Empty directory</p>';
   }
 }
 
-// Show detected drives in browser
-async function loadDrives() {
-  const res = await fetch('/api/drives');
+async function newFolder() {
+  const name = prompt('New folder name:');
+  if (!name) return;
+  const res = await fetch('/api/mkdir', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({parent: currentBrowserPath, name: name.trim()})
+  });
   const data = await res.json();
-  // Drives already shown in the quick-pick buttons above
+  if (data.error) { alert(data.error); return; }
+  await browseTo(data.path);
 }
 </script>
 {% endblock %}

@@ -1,0 +1,90 @@
+@startuml auth_sequence
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 11
+skinparam ArrowColor #444444
+skinparam SequenceBoxBorderColor #888888
+skinparam SequenceBoxBackgroundColor #f5f5f5
+skinparam SequenceActorBorderColor #555555
+skinparam SequenceActorBackgroundColor #e8f0fe
+skinparam SequenceParticipantBorderColor #555555
+skinparam SequenceParticipantBackgroundColor #e8f0fe
+skinparam SequenceLifeLineBorderColor #aaaaaa
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #ccaa00
+skinparam SequenceGroupBorderColor #888888
+skinparam SequenceGroupBackgroundColor #f0f0f0
+
+title PQ Journal — Authentication Sequence (R016–R024)
+
+actor "User" as user
+participant "Browser" as browser
+participant "auth.py" as auth_route
+participant "key_store.py" as key_store
+participant "session.py" as session_svc
+participant "db.py" as db
+participant "config.py" as config
+
+== Initial Setup (R016–R018) ==
+
+user -> browser : Visit /setup
+browser -> auth_route : GET /setup
+auth_route --> browser : Setup form\n(default journal dir = ~/MeaningfulJournal)
+
+user -> browser : Enter key_dir, journal_dir,\npassphrase (≥12 chars), confirm
+browser -> auth_route : POST /setup/generate
+auth_route -> key_store : generate_and_save_keys(key_dir, passphrase)
+note right : ML-KEM-1024 keypair\nX25519 keypair\nPBKDF2 600k iterations
+
+key_store --> auth_route : {fingerprint, ...}
+auth_route -> auth_route : Create {journal_dir}/settings/settings.yaml
+auth_route --> browser : Success + fingerprint display
+
+== Unlock / Login (R019–R023) ==
+
+user -> browser : Visit /unlock
+browser -> auth_route : GET /unlock
+auth_route --> browser : Unlock form\n(journal_dir + key_dir + passphrase)
+
+user -> browser : Enter journal_dir, key_dir, passphrase
+browser -> auth_route : POST /unlock
+
+auth_route -> auth_route : Validate journal_dir not empty (R019)
+auth_route -> key_store : key_dir_has_keys(key_dir) (R020)
+alt No keys found
+  key_store --> auth_route : False
+  auth_route --> browser : HTTP 400 "No key files found"
+end
+
+auth_route -> key_store : load_keys(key_dir, passphrase) (R021)
+alt Wrong passphrase
+  key_store --> auth_route : ValueError
+  auth_route --> browser : HTTP 400 "Unlock failed"
+end
+
+key_store --> auth_route : {kem_pub, kem_priv, x25519_pub, x25519_priv}
+
+auth_route -> config : os.environ["JOURNAL_DIR"] = journal_dir\nload journal settings\ncache_clear()
+auth_route -> config : get_settings() → cfg
+
+auth_route -> auth_route : cfg.entries_dir.mkdir() (R022)
+auth_route -> db : init_db() → create journal.sqlite (R022)
+
+auth_route -> session_svc : create_session(keys, key_dir, journal_dir) (R023)
+session_svc --> auth_route : signed_token
+
+auth_route -> db : set_db_encryption_key(\n  derive_db_key(kem_priv, x25519_priv)\n) (R035)
+
+auth_route --> browser : HTTP 302 /journal\nSet-Cookie: pqj_session=token;\n  HttpOnly; SameSite=Strict; Max-Age=86400
+
+== Lock / Logout (R024) ==
+
+user -> browser : Click Lock
+browser -> auth_route : POST /lock
+auth_route -> session_svc : destroy_session(token)
+note right : zero_keys() overwrites\nkey bytearrays with 0x00 (R040)
+auth_route -> db : clear_db_encryption_key() (R044)
+auth_route --> browser : HTTP 302 /unlock\nDelete-Cookie: pqj_session
+
+@enduml

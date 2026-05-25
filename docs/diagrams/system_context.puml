@@ -1,0 +1,58 @@
+@startuml system_context
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 12
+skinparam ArrowColor #444444
+skinparam ActorBorderColor #444444
+skinparam ActorBackgroundColor #f8f8f8
+skinparam ComponentBorderColor #666666
+skinparam ComponentBackgroundColor #f0f4ff
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #ccbb00
+skinparam RectangleBorderColor #888888
+skinparam RectangleBackgroundColor #f9f9f9
+
+title PQ Journal — System Context Diagram
+
+actor "Journaler\n(User)" as user
+
+rectangle "PQ Journal System\n(localhost:8000)" as pqj {
+  component "FastAPI Web App" as app
+  component "SQLite Database\n(encrypted)" as db
+  component "Encrypted .pqj Files\n(ML-KEM-1024 + X25519 + AES-256-GCM)" as files
+  component "Settings\n(journal/settings/settings.yaml)" as settings
+}
+
+rectangle "External USB Drive\nor Key Directory" as usb {
+  component "Encrypted Key Files\n(PBKDF2 + AES-256-GCM)" as keys
+}
+
+rectangle "Optional Local Services" as local {
+  component "Ollama LLM\n(http://localhost:11434)" as ollama
+  component "HuggingFace\nemotion model\n(local cache)" as hf
+  component "Whisper STT\n(local model)" as whisper
+}
+
+user --> app : "browser\n(localhost)"
+app --> db : "encrypted\nmetadata"
+app --> files : "encrypted\nentry bodies"
+app --> settings : "read/write\nconfig"
+app --> keys : "load keys\nat login"
+app ..> ollama : "LLM emotion\nsynthesis\n(optional)"
+app ..> hf : "paragraph\nemotion\n(optional)"
+app ..> whisper : "voice\ntranscription\n(optional)"
+
+note right of pqj
+  All journal data stays
+  on this machine.
+  No cloud services.
+end note
+
+note left of usb
+  Keys stored separately
+  from journal data.
+  Typically on USB drive.
+end note
+
+@enduml

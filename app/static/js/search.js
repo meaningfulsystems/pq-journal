@@ -36,7 +36,7 @@ function startSearch() {
   searchCount = 0;
   searchTotal = 0;
 
-  searchSource = new EventSource(`/search?q=${encodeURIComponent(query)}`);
+  searchSource = new EventSource(`/journal/search?q=${encodeURIComponent(query)}`);
 
   searchSource.onmessage = function(event) {
     try {

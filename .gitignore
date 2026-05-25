@@ -1,10 +1,12 @@
 # ── Secrets & user config ────────────────────────────────────────────────────
 .env
-settings.yaml          # user-specific; see settings.yaml.example
+# user-specific; see settings.yaml.example
+settings.yaml
 
 # ── Journal data (never commit entries or keys) ───────────────────────────────
 MeaningfulJournal/
-*.pqj                  # encrypted journal entry files
+# encrypted journal entry files
+*.pqj
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
@@ -51,6 +53,8 @@ ENV/
 .DS_Store?
 ._*
 Thumbs.db
+# Accidental literal tilde directory from unexpanded ~/ paths
+~/
 *.swp
 *.swo
 *~
@@ -60,8 +64,15 @@ Thumbs.db
 
 # ── Claude Code session files ─────────────────────────────────────────────────
 .claude/
+memory/
 
 # ── Temporary / test output ───────────────────────────────────────────────────
 *.log
 tmp/
 temp/
+
+# archive with original python code
+archive/
+
+# ai-collaborations and cross-review
+ai-collab/

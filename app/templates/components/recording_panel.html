@@ -9,10 +9,18 @@
     </button>
 
     <!-- STT engine badge -->
-    <span id="stt-badge" class="text-xs text-muted"></span>
+    <span id="stt-badge" class="text-xs text-muted font-mono"></span>
 
     <!-- Real-time emotion -->
     <span id="live-emotion" class="text-xs text-subtle italic ml-auto"></span>
+  </div>
+
+  <!-- Engine status row (shown when recording) -->
+  <div id="engine-status" class="hidden mb-2 flex items-center gap-3 flex-wrap text-xs">
+    <span class="text-muted">Engines:</span>
+    <span id="status-stt" class="px-1.5 py-0.5 rounded border font-mono"></span>
+    <span id="status-emotion" class="px-1.5 py-0.5 rounded border font-mono"></span>
+    <span id="status-llm" class="px-1.5 py-0.5 rounded border font-mono"></span>
   </div>
 
   <!-- Waveform canvas -->
@@ -20,7 +28,16 @@
           class="w-full h-10 rounded hidden"
           style="background:#0a0a0a"></canvas>
 
+  <!-- Scrolling emotion ticker (under waveform, same speed) -->
+  <div id="emotion-ticker-wrap"
+       class="hidden relative h-5 overflow-hidden rounded"
+       style="background:#0a0a0a">
+    <span id="emotion-ticker-text"
+          class="absolute text-xs text-accent/80 italic whitespace-nowrap"
+          style="top:50%;transform:translateY(-50%)"></span>
+  </div>
+
   <!-- Live transcript preview (while recording) -->
   <div id="partial-transcript"
-       class="hidden mt-2 text-xs text-subtle font-mono italic min-h-[1.5em] pl-1"></div>
+       class="hidden mt-2 text-xs text-accent/70 font-mono italic min-h-[1.5em] pl-1"></div>
 </div>

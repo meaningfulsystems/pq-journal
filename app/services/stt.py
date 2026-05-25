@@ -80,17 +80,46 @@ def transcribe_pcm(pcm_bytes: bytes, sample_rate: int = 16000) -> str:
     return ""
 
 
+_HALLUCINATIONS = {
+    "thank you.", "thank you", "thanks.", "thanks", "thank you for watching.",
+    "thanks for watching.", "you.", "you", "bye.", "bye", "goodbye.", "goodbye",
+    "okay.", "okay", "ok.", "ok", "uh.", "um.", "hmm.", "[music]", "[applause]",
+    "subtitles by", "transcript by",
+}
+
+
+def _filter_segments(segments) -> str:
+    parts = []
+    for seg in segments:
+        # Drop segments where whisper itself isn't confident there's speech
+        if getattr(seg, "no_speech_prob", 0.0) > 0.6:
+            continue
+        text = seg.text.strip()
+        if not text:
+            continue
+        # Drop known hallucination phrases
+        if text.lower().rstrip(".!?,") in _HALLUCINATIONS or text.lower() in _HALLUCINATIONS:
+            continue
+        parts.append(text)
+    return " ".join(parts).strip()
+
+
 def _transcribe_whisper(pcm_bytes: bytes, sample_rate: int) -> str:
     import numpy as np
     audio = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-    # faster-whisper accepts a numpy float32 array directly
     segments, _ = _whisper_model.transcribe(
         audio,
-        language=None,  # auto-detect
+        language=None,
+        condition_on_previous_text=False,
+        no_speech_threshold=0.5,
         vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 300},
+        vad_parameters={
+            "threshold": 0.3,
+            "min_silence_duration_ms": 500,
+            "speech_pad_ms": 400,
+        },
     )
-    return " ".join(seg.text.strip() for seg in segments).strip()
+    return _filter_segments(segments)
 
 
 def _transcribe_vosk(pcm_bytes: bytes, sample_rate: int) -> str:

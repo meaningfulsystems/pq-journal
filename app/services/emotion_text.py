@@ -60,7 +60,7 @@ def get_emotion_engine() -> str:
     return _engine
 
 
-def classify_paragraph(text: str) -> dict:
+def classify_paragraph(text: str, ollama_url: str = "", ollama_model: str = "") -> dict:
     """Return {emotion_label, emotion_scores} for a single text block."""
     if not text.strip():
         return {"emotion_label": "", "emotion_scores": {}}
@@ -75,15 +75,54 @@ def classify_paragraph(text: str) -> dict:
         except Exception as e:
             logger.error(f"HF classify failed: {e}")
 
+    if ollama_url:
+        result = _ollama_classify(text, ollama_url, ollama_model)
+        if result:
+            return result
+
     return _keyword_classify(text)
 
 
-def classify_paragraphs(text: str) -> list[dict]:
+def _ollama_classify(text: str, ollama_url: str, ollama_model: str) -> dict | None:
+    """Use Ollama to classify emotion when HuggingFace is unavailable."""
+    prompt = (
+        "Classify the emotional content of this journal text. "
+        "Return ONLY a JSON object with these exact keys and float values 0.0-1.0: "
+        "{\"joy\": 0.0, \"sadness\": 0.0, \"anger\": 0.0, \"fear\": 0.0, "
+        "\"disgust\": 0.0, \"neutral\": 0.0, \"surprise\": 0.0}. "
+        "Values must sum to 1.0. Text: \"" + text[:300] + "\""
+    )
+    try:
+        import httpx, json as _json
+        r = httpx.post(
+            f"{ollama_url}/api/generate",
+            json={"model": ollama_model, "prompt": prompt, "stream": False},
+            timeout=8.0,
+        )
+        if r.status_code != 200:
+            return None
+        raw = r.json().get("response", "")
+        # Extract JSON from response
+        start, end = raw.find("{"), raw.rfind("}") + 1
+        if start == -1 or end == 0:
+            return None
+        scores = _json.loads(raw[start:end])
+        scores = {k: round(float(v), 4) for k, v in scores.items() if k in _KEYWORDS or k == "neutral"}
+        if not scores:
+            return None
+        top = max(scores, key=scores.get)
+        return {"emotion_label": top, "emotion_scores": scores}
+    except Exception as e:
+        logger.debug(f"Ollama emotion classify failed: {e}")
+        return None
+
+
+def classify_paragraphs(text: str, ollama_url: str = "", ollama_model: str = "") -> list[dict]:
     """Split text into paragraphs and classify each. Returns list of para dicts."""
     raw_paras = [p.strip() for p in text.split("\n\n") if p.strip()]
     if not raw_paras and text.strip():
         raw_paras = [text.strip()]
-    return [{"text": p, **classify_paragraph(p)} for p in raw_paras]
+    return [{"text": p, **classify_paragraph(p, ollama_url, ollama_model)} for p in raw_paras]
 
 
 def synthesize_overall_emotion(

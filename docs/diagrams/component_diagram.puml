@@ -1,0 +1,78 @@
+@startuml component_diagram
+skinparam backgroundColor White
+skinparam defaultBackgroundColor White
+skinparam defaultFontColor #222222
+skinparam defaultFontSize 11
+skinparam ArrowColor #444444
+skinparam PackageBorderColor #888888
+skinparam PackageBackgroundColor #f5f5f5
+skinparam ComponentBorderColor #666666
+skinparam ComponentBackgroundColor #e8f0fe
+skinparam InterfaceBorderColor #888888
+skinparam InterfaceBackgroundColor White
+
+title PQ Journal — Component Diagram
+
+package "Routes Layer" {
+  [auth.py\nAuthentication] as auth
+  [journal.py\nEntry CRUD] as journal
+  [voice.py\nRecording & STT] as voice
+  [emotion.py\nEmotion Analysis] as emotion
+  [files.py\nFilesystem API] as files
+  [settings.py\nConfiguration] as settings_route
+}
+
+package "Services Layer" {
+  [key_store.py\nKey Gen & Load] as key_store
+  [session.py\nIn-Memory Sessions] as session
+  [crypto.py\nML-KEM + X25519\n+ AES-256-GCM] as crypto
+  [stt.py\nWhisper / Vosk] as stt
+  [llm.py\nOllama LLM] as llm
+  [emotion_text.py\nHF / Keywords] as emot_text
+  [emotion_video.py\nFacial Recognition] as emot_video
+  [tone.py\nVAD Estimator] as tone
+}
+
+package "Data Layer" {
+  [db.py\nSQLAlchemy\n+ EncryptedText] as db
+  database "journal.sqlite\n(encrypted cols)" as sqlite
+  folder "entries/\n*.pqj files" as pqj_files
+  folder "settings/\nsettings.yaml" as yaml_files
+}
+
+package "Browser Client" {
+  [recorder.js\nAudio + WS] as recorder
+  [webcam.js\nVideo Frames] as webcam
+  [search.js\nSSE Search] as search_js
+  [HTMX\nPartial UI] as htmx
+}
+
+' Route → Service dependencies
+auth --> key_store
+auth --> session
+auth --> crypto
+auth --> db
+journal --> crypto
+journal --> db
+journal --> llm
+voice --> stt
+voice --> tone
+voice --> session
+emotion --> llm
+emotion --> emot_text
+emotion --> emot_video
+
+' Service → Data dependencies
+db --> sqlite
+crypto --> pqj_files
+settings_route --> yaml_files
+
+' Browser → Routes (HTTP/WS)
+recorder --> voice : "WS /ws/record\nPCM binary"
+recorder --> emotion : "POST /emotion/live_summary"
+webcam --> emotion : "POST /emotion/video/frame"
+search_js --> journal : "GET /journal/search\n(SSE)"
+htmx --> journal : "HTMX partials"
+htmx --> settings_route
+
+@enduml
