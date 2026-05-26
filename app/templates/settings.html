@@ -227,13 +227,28 @@
           </label>
           <div id="debug-warning"
                class="{% if not settings.enable_debug %}hidden {% endif %}rounded border border-red-800 bg-red-950/30 px-4 py-3">
-            <p class="text-sm text-red-300 font-medium">⚠ Security warning: debug mode is active</p>
+            <p class="text-sm text-red-300 font-medium">&#9888; Security warning: debug mode is active</p>
             <p class="text-xs text-red-200/70 mt-1">
               While debug is enabled, a <strong>plain-text (unencrypted)</strong> copy of everything
               you dictate is written to <code class="font-mono">{{ settings.journal_dir }}/debug/</code>.
               Disable debug mode before writing anything sensitive.
             </p>
           </div>
+          {% if debug_file_count > 0 %}
+          <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 flex items-center justify-between gap-4">
+            <div>
+              <p class="text-sm text-yellow-300 font-medium">Debug data on disk</p>
+              <p class="text-xs text-yellow-200/70 mt-1">
+                {{ debug_file_count }} file{{ 's' if debug_file_count != 1 else '' }} in
+                <code class="font-mono">{{ settings.journal_dir }}/debug/</code>
+              </p>
+            </div>
+            <button type="button" onclick="clearDebugData(this)"
+                    class="px-3 py-1.5 text-xs bg-yellow-700 hover:bg-yellow-600 text-white rounded transition-colors whitespace-nowrap">
+              Clear debug data
+            </button>
+          </div>
+          {% endif %}
         </div>
       </div>
     </section>
@@ -266,6 +281,24 @@
 
 {% block scripts %}
 <script>
+async function clearDebugData(btn) {
+  if (!confirm('Delete all files in the debug folder? This cannot be undone.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  // Save current form state first so any unsaved changes (e.g. unchecked debug) are persisted
+  const form = document.getElementById('settings-form');
+  await fetch('/settings', { method: 'POST', body: new FormData(form) });
+  // Then delete the debug folder
+  const resp = await fetch('/settings/clear-debug', { method: 'POST' });
+  if (resp.ok || resp.redirected) {
+    window.location.reload();
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Clear debug data';
+    alert('Failed to delete debug data. Check the server log.');
+  }
+}
+
 function onDebugToggle(cb) {
   const warning = document.getElementById('debug-warning');
   if (cb.checked) {

@@ -8,7 +8,6 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.dependencies import SessionExpired
@@ -189,7 +188,7 @@ app.include_router(voice.router)
 app.include_router(settings.router)
 app.include_router(emotion.router)
 
-templates = Jinja2Templates(directory="app/templates")
+from app.templating import templates
 
 
 @app.exception_handler(SessionExpired)

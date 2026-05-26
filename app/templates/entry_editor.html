@@ -6,7 +6,7 @@
   <!-- Main editor -->
   <div class="flex-1 min-w-0">
     <div class="flex justify-center mb-4">
-      <img src="/static/img/quantumlock.png" alt="PQ Journal" style="max-width:150px;width:100%">
+      <img src="/static/img/quantumlock.png" alt="PQ Journal" style="max-width:225px;width:100%">
     </div>
 
     <div class="flex items-center justify-between mb-5">
@@ -90,7 +90,7 @@
     <div id="webcam-panel" class="space-y-2">
       <video id="webcam-video" autoplay muted playsinline
              class="w-full rounded border border-border hidden"
-             style="max-height:160px;object-fit:cover"></video>
+             style="max-height:240px;object-fit:cover"></video>
       <canvas id="webcam-canvas" class="hidden" width="320" height="240"></canvas>
       <!-- Real-time emotion under webcam -->
       <div id="realtime-emotion-display"
@@ -133,7 +133,7 @@
   </div>
 </div>
 
-{% if enable_debug %}
+{% if enable_debug() %}
 <!-- Debug panel -->
 <div class="mt-8 border-t border-yellow-900/30 pt-4">
   <div class="flex items-center justify-between mb-2">
@@ -154,7 +154,7 @@
 
 {% block scripts %}
 <script>const ENABLE_WEBCAM = {{ enable_webcam | tojson }};
-const ENABLE_DEBUG = {{ enable_debug | tojson }};</script>
+const ENABLE_DEBUG = {{ enable_debug() | tojson }};</script>
 <script src="/static/js/recorder.js"></script>
 <script>
 // ── Auto-save ────────────────────────────────────────────────────────────────

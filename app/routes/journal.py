@@ -11,7 +11,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
@@ -23,8 +22,9 @@ from app.services.crypto import encrypt_entry, decrypt_entry
 from app.services.session import SessionData
 import yaml
 
+from app.templating import templates
+
 router = APIRouter(prefix="/journal", tags=["journal"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _now() -> datetime:
@@ -105,7 +105,7 @@ async def new_entry(
     cfg = get_settings()
     return templates.TemplateResponse(
         "entry_editor.html",
-        {"request": request, "entry": None, "prompt": prompt, "enable_webcam": cfg.enable_webcam, "enable_debug": cfg.enable_debug},
+        {"request": request, "entry": None, "prompt": prompt, "enable_webcam": cfg.enable_webcam},
     )
 
 
@@ -351,7 +351,6 @@ async def edit_entry(
             "meta": db_entry.to_dict(),
             "prompt": prompt,
             "enable_webcam": cfg.enable_webcam,
-            "enable_debug": cfg.enable_debug,
         },
     )
 
