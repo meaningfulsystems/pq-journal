@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from pathlib import Path
 
 import httpx
 import yaml
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.dependencies import require_unlocked
@@ -17,9 +17,10 @@ from app.services.session import SessionData
 from app.services.stt import get_active_engine
 from app.services.emotion_text import get_emotion_engine
 
+from app.templating import templates
+
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["settings"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 async def _check_ollama(url: str) -> bool:
@@ -58,6 +59,9 @@ async def settings_page(
     except ImportError:
         pass
 
+    debug_dir = settings.journal_dir / "debug"
+    debug_file_count = len(list(debug_dir.glob("*"))) if debug_dir.exists() else 0
+
     return templates.TemplateResponse(
         "settings.html",
         {
@@ -71,6 +75,7 @@ async def settings_page(
             "prompt_count": prompt_count,
             "saved": saved,
             "key_dir": session.key_dir,
+            "debug_file_count": debug_file_count,
         },
     )
 
@@ -118,4 +123,20 @@ async def save_settings(
     except Exception as e:
         logger.error(f"Failed to save settings: {e}")
 
+    return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+@router.post("/settings/clear-debug")
+async def clear_debug_data(
+    request: Request,
+    session: SessionData = Depends(require_unlocked),
+):
+    """Delete the entire debug folder from the journal directory."""
+    debug_dir = get_settings().journal_dir / "debug"
+    try:
+        if debug_dir.exists():
+            shutil.rmtree(debug_dir)
+            logger.info("Debug folder deleted: %s", debug_dir)
+    except Exception as e:
+        logger.error("Failed to delete debug folder: %s", e)
     return RedirectResponse("/settings?saved=1", status_code=303)

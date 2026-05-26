@@ -11,7 +11,6 @@ from typing import Optional
 import yaml
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.dependencies import SESSION_COOKIE, get_session_data
@@ -25,8 +24,9 @@ from app.services.key_store import (
 )
 from app.services.session import SessionData
 
+from app.templating import templates
+
 router = APIRouter(tags=["auth"])
-templates = Jinja2Templates(directory="app/templates")
 
 # Rate limiting: track failed unlock attempts per source IP
 # Structure: { ip: [timestamp, ...] }

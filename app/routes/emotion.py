@@ -11,7 +11,6 @@ import logging
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.dependencies import require_unlocked
@@ -20,8 +19,9 @@ from app.services import emotion_text as text_svc
 from app.services import emotion_video as video_svc
 from app.services import llm as llm_svc
 
+from app.templating import templates
+
 router = APIRouter(prefix="/emotion", tags=["emotion"])
-templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger(__name__)
 
 
