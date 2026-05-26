@@ -374,4 +374,4 @@ The `archive/` directory contains the original PyQt6 desktop app from which this
 ---
 
 © 2026 Meaningful Systems, LLC. Released under the [MIT License](LICENSE).  
-Third-party AI model weights (Llama 3.2 via Ollama) carry their own license terms — see [LICENSE](LICENSE) for details.
+Third-party software and models carry their own license terms — see [LICENSE](LICENSE) for details.
