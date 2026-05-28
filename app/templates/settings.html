@@ -10,248 +10,279 @@
             title="Save and close">×</button>
   </div>
 
+  <!-- Mode indicator -->
+  <div class="flex items-center gap-3 mb-8 px-4 py-3 rounded border border-border bg-panel">
+    <span class="text-xs text-muted uppercase tracking-widest">Current mode:</span>
+    {% if settings.ai_mode %}
+    <span class="px-2 py-0.5 rounded border border-blue-700 text-blue-400 text-xs font-medium">&#x1F3A4; AI Mode</span>
+    <span class="text-xs text-muted">Voice · LLM emotion · Facial detection active</span>
+    {% else %}
+    <span class="px-2 py-0.5 rounded border border-green-800 text-green-400 text-xs font-medium">&#9997;&#65039; Minimalist</span>
+    <span class="text-xs text-muted">Writing + encryption only</span>
+    {% endif %}
+  </div>
+
   <form id="settings-form" method="post" action="/settings" class="space-y-10">
 
-    <!-- Storage locations -->
-    <section>
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Storage Locations</h2>
-      <div class="space-y-2 px-4 py-3 rounded border border-border bg-panel font-mono text-xs">
-        <div class="flex items-start gap-2">
-          <span class="text-muted shrink-0 w-20">Journal</span>
-          <span class="text-primary break-all">{{ settings.journal_dir }}</span>
-        </div>
-        <div class="flex items-start gap-2">
-          <span class="text-muted shrink-0 w-20">Keys</span>
-          <span class="text-primary break-all">{{ key_dir }}</span>
-        </div>
+    <!-- ══════════════════════════════════════════════════════════════════
+         SECTION 1 — MINIMALIST (always on)
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="rounded-lg border border-green-900/40 bg-green-950/10 overflow-hidden">
+      <div class="px-5 py-3 border-b border-green-900/30 flex items-center gap-2">
+        <span class="text-green-400">&#9997;&#65039;</span>
+        <h2 class="text-sm font-semibold text-green-300">Minimalist Mode</h2>
+        <span class="ml-auto text-xs px-2 py-0.5 rounded bg-green-900/30 border border-green-800/40 text-green-500">Always on</span>
       </div>
-      <p class="text-xs text-muted mt-2">Encrypted with ML-KEM-1024 + X25519 · AES-256-GCM · All data stays on this device.</p>
-    </section>
 
-    <!-- Journal -->
-    <section>
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Journal</h2>
-      <div class="space-y-4">
+      <div class="px-5 py-5 space-y-6">
+
+        <!-- Storage locations -->
         <div>
-          <label class="block text-sm text-subtle mb-1">Auto-lock after (minutes)</label>
-          <input type="number" name="auto_lock_minutes" value="{{ settings.auto_lock_minutes }}"
-                 min="1" max="480"
-                 class="w-40 bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-muted">
-        </div>
-      </div>
-    </section>
-
-    <!-- STT -->
-    <section>
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Speech-to-Text</h2>
-      <div class="space-y-4">
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-subtle">Active engine:</span>
-          <span class="px-2 py-0.5 rounded text-xs font-mono border
-            {% if stt_engine == 'whisper' %}border-green-800 text-green-400
-            {% elif stt_engine == 'vosk' %}border-yellow-800 text-yellow-400
-            {% else %}border-red-900 text-red-400{% endif %}">
-            {{ stt_engine }}
-          </span>
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Storage</h3>
+          <div class="space-y-2 px-4 py-3 rounded border border-border bg-panel font-mono text-xs">
+            <div class="flex items-start gap-2">
+              <span class="text-muted shrink-0 w-20">Journal</span>
+              <span class="text-primary break-all">{{ settings.journal_dir }}</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-muted shrink-0 w-20">Keys</span>
+              <span class="text-primary break-all">{{ key_dir }}</span>
+            </div>
+          </div>
+          <p class="text-xs text-muted mt-2">ML-KEM-1024 + X25519 · AES-256-GCM · All data stays on this device.</p>
         </div>
 
+        <!-- Auto-lock -->
         <div>
-          <label class="block text-sm text-subtle mb-1">faster-whisper model</label>
-          <select name="stt_model"
-                  class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-muted">
-            {% for m in ['tiny', 'base', 'small', 'medium', 'large-v3', 'large-v3-turbo'] %}
-            <option value="{{ m }}" {% if settings.stt_model == m %}selected{% endif %}>{{ m }}</option>
-            {% endfor %}
-          </select>
-          <p class="text-xs text-muted mt-1">
-            large-v3-turbo: ~800MB, best quality. tiny: ~75MB, fast.
-            First use downloads the model automatically.
-          </p>
-        </div>
-
-        <div>
-          <label class="block text-sm text-subtle mb-1">Vosk model directory (fallback)</label>
-          <input type="text" name="vosk_model_dir" value="{{ settings.vosk_model_dir or '' }}"
-                 placeholder="Leave blank to disable Vosk"
-                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
-          <p class="text-xs text-muted mt-1">
-            Used when faster-whisper is not installed.
-            Download models from <span class="font-mono">alphacephei.com/vosk/models</span>.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Emotion / HuggingFace -->
-    <section>
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Emotion Analysis (HuggingFace)</h2>
-      <div class="space-y-3">
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-subtle">Status:</span>
-          <span class="px-2 py-0.5 rounded text-xs font-mono border
-            {% if emotion_engine == 'hf' %}border-green-800 text-green-400
-            {% else %}border-red-900 text-red-400{% endif %}">
-            {% if emotion_engine == 'hf' %}active{% else %}inactive{% endif %}
-          </span>
-          {% if emotion_engine != 'hf' %}
-          <span class="text-xs text-muted">falling back to: keyword heuristic</span>
-          {% endif %}
-        </div>
-        {% if not hf_available %}
-        <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 space-y-3">
-          <p class="text-sm text-yellow-300 font-medium">HuggingFace transformers not installed — per-paragraph emotion analysis unavailable.</p>
-          <p class="text-xs text-yellow-200/70">Install once. The model (<span class="font-mono">j-hartmann/emotion-english-distilroberta-base</span>) downloads automatically (~250MB) on first run.</p>
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">Session</h3>
           <div>
-            <p class="text-xs text-subtle mb-1">Run in Terminal (requires ~2GB for PyTorch):</p>
-            <div class="flex items-center gap-2">
-              <code class="flex-1 px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">pip install transformers torch</code>
-              <button type="button" onclick="copyCmd(this, 'pip install transformers torch')"
-                      class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
-            </div>
-            <p class="text-xs text-subtle mt-1">Then restart PQ Journal. Model downloads on first emotion analysis.</p>
+            <label class="block text-sm text-subtle mb-1">Auto-lock after (minutes)</label>
+            <input type="number" name="auto_lock_minutes" value="{{ settings.auto_lock_minutes }}"
+                   min="1" max="480"
+                   class="w-40 bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-muted">
           </div>
         </div>
-        {% elif emotion_engine != 'hf' %}
-        <p class="text-xs text-muted">transformers is installed but the model hasn't loaded yet. It will download automatically on first use.</p>
-        {% else %}
-        <p class="text-xs text-muted">Model: <span class="font-mono">j-hartmann/emotion-english-distilroberta-base</span></p>
-        {% endif %}
+
+
       </div>
-    </section>
+    </div>
 
-    <!-- LLM / Ollama -->
-    <section>
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Language Model (Ollama)</h2>
-      <div class="space-y-4">
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-subtle">Ollama status:</span>
-          <span class="px-2 py-0.5 rounded text-xs font-mono border
-            {% if ollama_available %}border-green-800 text-green-400{% else %}border-red-900 text-red-400{% endif %}">
-            {% if ollama_available %}connected{% else %}not detected{% endif %}
-          </span>
-        </div>
-        {% if not ollama_available %}
-        <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 space-y-3">
-          <p class="text-sm text-yellow-300 font-medium">Ollama is not running — emotion analysis will not work.</p>
-          <p class="text-xs text-yellow-200/70">
-            Ollama is a free, local AI model runner. Install it, then pull a model:
-          </p>
-          <div class="space-y-2">
-            <div>
-              <p class="text-xs text-subtle mb-1">1. Install Ollama (download the Mac app or run in Terminal):</p>
-              <div class="flex items-center gap-2">
-                <code class="flex-1 block px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">curl -fsSL https://ollama.com/install.sh | sh</code>
-                <button type="button" onclick="copyCmd(this, 'curl -fsSL https://ollama.com/install.sh | sh')"
-                        class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
-              </div>
-              <p class="text-xs text-subtle mt-1">Or download the Mac app from <span class="font-mono">ollama.com</span></p>
-            </div>
-            <div>
-              <p class="text-xs text-subtle mb-1">2. Pull the language model (run once in Terminal):</p>
-              <div class="flex items-center gap-2">
-                <code class="flex-1 block px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">ollama pull llama3.2:3b</code>
-                <button type="button" onclick="copyCmd(this, 'ollama pull llama3.2:3b')"
-                        class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
-              </div>
-            </div>
-          </div>
-          <p class="text-xs text-subtle">After installing, restart PQ Journal (<code class="font-mono">python run.py</code>) and reload this page.</p>
-        </div>
-        {% endif %}
 
-        <div>
-          <label class="block text-sm text-subtle mb-1">Ollama URL</label>
-          <input type="text" name="ollama_url" value="{{ settings.ollama_url }}"
-                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
-        </div>
-
-        <div>
-          <label class="block text-sm text-subtle mb-1">Ollama model</label>
-          <input type="text" name="ollama_model" value="{{ settings.ollama_model }}"
-                 placeholder="llama3.2:3b"
-                 class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
-        </div>
-
-        <div class="pt-2 border-t border-border">
-          <h3 class="text-xs text-subtle mb-3">Emotion Summary Timing</h3>
-          <div class="grid grid-cols-3 gap-4">
-            <div>
-              <label class="block text-xs text-subtle mb-1">Interval (seconds)</label>
-              <input type="number" name="emotion_window_seconds" value="{{ settings.emotion_window_seconds }}"
-                     min="{{ settings.emotion_min_seconds }}" max="300"
-                     class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
-              <p class="text-xs text-muted mt-1">Recurring period between summaries</p>
-            </div>
-            <div>
-              <label class="block text-xs text-subtle mb-1">Min window (seconds)</label>
-              <input type="number" name="emotion_min_seconds" value="{{ settings.emotion_min_seconds }}"
-                     min="10" max="300"
-                     class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
-              <p class="text-xs text-muted mt-1">Never fire faster than this</p>
-            </div>
-            <div>
-              <label class="block text-xs text-subtle mb-1">Min words</label>
-              <input type="number" name="emotion_min_words" value="{{ settings.emotion_min_words }}"
-                     min="1" max="200"
-                     class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
-              <p class="text-xs text-muted mt-1">Skip if transcript too short</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Features -->
-    <section>
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-4">Features</h2>
-      <div class="space-y-4">
-        <label class="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" name="enable_webcam" value="true"
-                 {% if settings.enable_webcam %}checked{% endif %}
-                 class="w-4 h-4 rounded border-border bg-panel">
-          <div>
-            <span class="text-sm">Enable webcam emotion detection</span>
-            <p class="text-xs text-muted">Requires py-feat + HSEmotion (optional install). Off by default.</p>
+    <!-- ══════════════════════════════════════════════════════════════════
+         SECTION 2 — AI MODE
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="rounded-lg border {% if settings.ai_mode %}border-blue-800/50 bg-blue-950/10{% else %}border-border bg-panel/40{% endif %} overflow-hidden">
+      <div class="px-5 py-3 border-b {% if settings.ai_mode %}border-blue-800/30{% else %}border-border{% endif %} flex items-center gap-3">
+        <span>&#x1F3A4;</span>
+        <h2 class="text-sm font-semibold {% if settings.ai_mode %}text-blue-300{% else %}text-subtle{% endif %}">AI Mode</h2>
+        <span class="text-xs text-muted">Voice-to-text · LLM emotion summary · Facial detection</span>
+        <!-- Master toggle -->
+        <label class="ml-auto flex items-center gap-2 cursor-pointer select-none" title="Enable or disable all AI features">
+          <span class="text-xs text-muted">{% if settings.ai_mode %}On{% else %}Off{% endif %}</span>
+          <div class="relative">
+            <input type="checkbox" id="ai-mode-toggle" name="ai_mode" value="true"
+                   {% if settings.ai_mode %}checked{% endif %}
+                   onchange="onAiModeToggle(this)"
+                   class="sr-only peer">
+            <div class="w-11 h-6 rounded-full border border-border bg-black/40
+                        peer-checked:bg-blue-700 peer-checked:border-blue-600
+                        transition-colors duration-200"></div>
+            <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-subtle
+                        peer-checked:translate-x-5 peer-checked:bg-white
+                        transition-transform duration-200 shadow"></div>
           </div>
         </label>
-        <div class="space-y-2">
-          <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" name="enable_debug" id="enable_debug_checkbox" value="true"
-                   {% if settings.enable_debug %}checked{% endif %}
-                   onchange="onDebugToggle(this)"
-                   class="w-4 h-4 rounded border-border bg-panel">
-            <div>
-              <span class="text-sm">Enable debug log</span>
-              <p class="text-xs text-muted">Shows a debug panel in the journal editor. Disable for normal use.</p>
-            </div>
-          </label>
-          <div id="debug-warning"
-               class="{% if not settings.enable_debug %}hidden {% endif %}rounded border border-red-800 bg-red-950/30 px-4 py-3">
-            <p class="text-sm text-red-300 font-medium">&#9888; Security warning: debug mode is active</p>
-            <p class="text-xs text-red-200/70 mt-1">
-              While debug is enabled, a <strong>plain-text (unencrypted)</strong> copy of everything
-              you dictate is written to <code class="font-mono">{{ settings.journal_dir }}/debug/</code>.
-              Disable debug mode before writing anything sensitive.
-            </p>
-          </div>
-          {% if debug_file_count > 0 %}
-          <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 flex items-center justify-between gap-4">
-            <div>
-              <p class="text-sm text-yellow-300 font-medium">Debug data on disk</p>
-              <p class="text-xs text-yellow-200/70 mt-1">
-                {{ debug_file_count }} file{{ 's' if debug_file_count != 1 else '' }} in
-                <code class="font-mono">{{ settings.journal_dir }}/debug/</code>
-              </p>
-            </div>
-            <button type="button" onclick="clearDebugData(this)"
-                    class="px-3 py-1.5 text-xs bg-yellow-700 hover:bg-yellow-600 text-white rounded transition-colors whitespace-nowrap">
-              Clear debug data
-            </button>
-          </div>
-          {% endif %}
-        </div>
       </div>
-    </section>
+
+      <!-- AI sub-settings — hidden when AI mode is off -->
+      <div id="ai-settings-body" class="{% if not settings.ai_mode %}opacity-40 pointer-events-none{% endif %} transition-opacity duration-200">
+
+        <!-- Performance note -->
+        <div class="px-5 py-5 space-y-8">
+
+          <!-- Speech-to-text -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
+              &#x1F399; Voice-to-Text (Speech Recognition)
+            </h3>
+            <div class="space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-subtle">Active engine:</span>
+                <span class="px-2 py-0.5 rounded text-xs font-mono border
+                  {% if stt_engine == 'whisper' %}border-green-800 text-green-400
+                  {% elif stt_engine == 'vosk' %}border-yellow-800 text-yellow-400
+                  {% else %}border-red-900 text-red-400{% endif %}">
+                  {{ stt_engine }}
+                </span>
+              </div>
+              <div>
+                <label class="block text-sm text-subtle mb-1">faster-whisper model</label>
+                <select name="stt_model"
+                        class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-muted">
+                  {% for m in ['tiny', 'base', 'small', 'medium', 'large-v3', 'large-v3-turbo'] %}
+                  <option value="{{ m }}" {% if settings.stt_model == m %}selected{% endif %}>{{ m }}</option>
+                  {% endfor %}
+                </select>
+                <p class="text-xs text-muted mt-1">large-v3-turbo: ~800 MB, best quality. tiny: ~75 MB, fast. Downloads automatically on first use.</p>
+              </div>
+              <div>
+                <label class="block text-sm text-subtle mb-1">Vosk model directory (fallback)</label>
+                <input type="text" name="vosk_model_dir" value="{{ settings.vosk_model_dir or '' }}"
+                       placeholder="Leave blank to disable Vosk"
+                       class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+                <p class="text-xs text-muted mt-1">Used when faster-whisper is not installed. Models at <span class="font-mono">alphacephei.com/vosk/models</span>.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- LLM / Ollama -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
+              &#x1F9E0; Language Model — Emotion Summary (Ollama)
+            </h3>
+            <div class="space-y-4">
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-subtle">Ollama:</span>
+                <span class="px-2 py-0.5 rounded text-xs font-mono border
+                  {% if ollama_available %}border-green-800 text-green-400{% else %}border-red-900 text-red-400{% endif %}">
+                  {% if ollama_available %}connected{% else %}not detected{% endif %}
+                </span>
+              </div>
+              {% if not ollama_available %}
+              <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 space-y-3">
+                <p class="text-sm text-yellow-300 font-medium">Ollama is not running — emotion summaries unavailable.</p>
+                <p class="text-xs text-yellow-200/70">Install Ollama (free, runs locally), then pull a model:</p>
+                <div class="space-y-2">
+                  <div>
+                    <p class="text-xs text-subtle mb-1">1. Install Ollama:</p>
+                    <div class="flex items-center gap-2">
+                      <code class="flex-1 block px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">curl -fsSL https://ollama.com/install.sh | sh</code>
+                      <button type="button" onclick="copyCmd(this, 'curl -fsSL https://ollama.com/install.sh | sh')"
+                              class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-xs text-subtle mb-1">2. Pull a model:</p>
+                    <div class="flex items-center gap-2">
+                      <code class="flex-1 block px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">ollama pull llama3.2:3b</code>
+                      <button type="button" onclick="copyCmd(this, 'ollama pull llama3.2:3b')"
+                              class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
+                    </div>
+                    <p class="text-xs text-muted mt-1">On slow hardware, try <code class="font-mono">llama3.2:1b</code> (~600 MB, ~3× faster).</p>
+                  </div>
+                </div>
+                <p class="text-xs text-subtle">Restart PQ Journal after installing, then reload this page.</p>
+              </div>
+              {% endif %}
+
+              <div>
+                <label class="block text-sm text-subtle mb-1">Ollama URL</label>
+                <input type="text" name="ollama_url" value="{{ settings.ollama_url }}"
+                       class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+              </div>
+              <div>
+                <label class="block text-sm text-subtle mb-1">Ollama model</label>
+                <input type="text" name="ollama_model" value="{{ settings.ollama_model }}"
+                       placeholder="llama3.2:3b"
+                       class="w-full bg-panel border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-muted">
+              </div>
+
+              <!-- Emotion timing -->
+              <div class="pt-2 border-t border-border">
+                <h4 class="text-xs text-subtle mb-3">Emotion Summary Timing</h4>
+                <div class="grid grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs text-subtle mb-1">Interval (sec)</label>
+                    <input type="number" name="emotion_window_seconds" value="{{ settings.emotion_window_seconds }}"
+                           min="{{ settings.emotion_min_seconds }}" max="300"
+                           class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+                    <p class="text-xs text-muted mt-1">Period between summaries</p>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-subtle mb-1">Min window (sec)</label>
+                    <input type="number" name="emotion_min_seconds" value="{{ settings.emotion_min_seconds }}"
+                           min="10" max="300"
+                           class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+                    <p class="text-xs text-muted mt-1">Never fire faster than this</p>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-subtle mb-1">Min words</label>
+                    <input type="number" name="emotion_min_words" value="{{ settings.emotion_min_words }}"
+                           min="1" max="200"
+                           class="w-full bg-panel border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+                    <p class="text-xs text-muted mt-1">Skip if transcript too short</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text emotion / HuggingFace -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
+              &#x1F4CA; Text Emotion Analysis (HuggingFace)
+            </h3>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-subtle">Status:</span>
+                <span class="px-2 py-0.5 rounded text-xs font-mono border
+                  {% if emotion_engine == 'hf' %}border-green-800 text-green-400
+                  {% else %}border-red-900 text-red-400{% endif %}">
+                  {% if emotion_engine == 'hf' %}active{% else %}inactive{% endif %}
+                </span>
+                {% if emotion_engine != 'hf' %}
+                <span class="text-xs text-muted">fallback: keyword heuristic</span>
+                {% endif %}
+              </div>
+              {% if not hf_available %}
+              <div class="rounded border border-yellow-800 bg-yellow-950/30 px-4 py-3 space-y-3">
+                <p class="text-sm text-yellow-300 font-medium">HuggingFace transformers not installed — per-paragraph emotion analysis unavailable.</p>
+                <p class="text-xs text-yellow-200/70">Model: <span class="font-mono">j-hartmann/emotion-english-distilroberta-base</span> (~250 MB, downloads automatically).</p>
+                <div>
+                  <p class="text-xs text-subtle mb-1">Install (requires ~2 GB for PyTorch):</p>
+                  <div class="flex items-center gap-2">
+                    <code class="flex-1 px-3 py-2 bg-black/40 border border-yellow-900/50 rounded font-mono text-xs text-yellow-100">pip install transformers torch</code>
+                    <button type="button" onclick="copyCmd(this, 'pip install transformers torch')"
+                            class="shrink-0 px-2 py-2 text-xs border border-yellow-900/50 rounded text-yellow-400 hover:bg-yellow-900/20 transition-colors">Copy</button>
+                  </div>
+                  <p class="text-xs text-subtle mt-1">Then restart PQ Journal.</p>
+                </div>
+              </div>
+              {% elif emotion_engine != 'hf' %}
+              <p class="text-xs text-muted">transformers installed — model downloads automatically on first emotion analysis.</p>
+              {% else %}
+              <p class="text-xs text-muted">Model: <span class="font-mono">j-hartmann/emotion-english-distilroberta-base</span></p>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Webcam / facial emotion -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-subtle mb-3">
+              &#x1F4F8; Facial Emotion Detection (Webcam)
+            </h3>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" name="enable_webcam" value="true"
+                     {% if settings.enable_webcam %}checked{% endif %}
+                     class="w-4 h-4 rounded border-border bg-panel">
+              <div>
+                <span class="text-sm">Enable webcam emotion detection</span>
+                <p class="text-xs text-muted">Captures facial expressions during recording. Requires py-feat + HSEmotion (optional install). Off by default.</p>
+              </div>
+            </label>
+          </div>
+
+        </div><!-- /ai-settings-body inner -->
+      </div><!-- /ai-settings-body -->
+
+      {% if not settings.ai_mode %}
+      <div class="px-5 pb-5 text-xs text-muted/60 italic">
+        Enable AI Mode to configure voice, LLM, and facial detection settings.
+      </div>
+      {% endif %}
+
+    </div><!-- /AI mode card -->
+
 
     <div class="flex items-center gap-4 pt-2">
       <button type="submit"
@@ -276,45 +307,22 @@
   </section>
 
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-async function clearDebugData(btn) {
-  if (!confirm('Delete all files in the debug folder? This cannot be undone.')) return;
-  btn.disabled = true;
-  btn.textContent = 'Deleting…';
-  // Save current form state first so any unsaved changes (e.g. unchecked debug) are persisted
-  const form = document.getElementById('settings-form');
-  await fetch('/settings', { method: 'POST', body: new FormData(form) });
-  // Then delete the debug folder
-  const resp = await fetch('/settings/clear-debug', { method: 'POST' });
-  if (resp.ok || resp.redirected) {
-    window.location.reload();
+function onAiModeToggle(cb) {
+  const body = document.getElementById('ai-settings-body');
+  const label = cb.closest('label').querySelector('span');
+  if (cb.checked) {
+    body.classList.remove('opacity-40', 'pointer-events-none');
+    if (label) label.textContent = 'On';
   } else {
-    btn.disabled = false;
-    btn.textContent = 'Clear debug data';
-    alert('Failed to delete debug data. Check the server log.');
+    body.classList.add('opacity-40', 'pointer-events-none');
+    if (label) label.textContent = 'Off';
   }
 }
 
-function onDebugToggle(cb) {
-  const warning = document.getElementById('debug-warning');
-  if (cb.checked) {
-    const confirmed = confirm(
-      'Security warning\n\n' +
-      'Enabling debug mode will save an UNENCRYPTED plain-text copy of everything ' +
-      'you dictate to the debug folder next to your journal.\n\n' +
-      'Only enable this for troubleshooting. Disable it before writing anything sensitive.\n\n' +
-      'Continue?'
-    );
-    if (!confirmed) { cb.checked = false; return; }
-    warning.classList.remove('hidden');
-  } else {
-    warning.classList.add('hidden');
-  }
-}
 
 function copyCmd(btn, text) {
   navigator.clipboard.writeText(text).then(() => {
@@ -330,6 +338,5 @@ async function saveAndClose() {
   await fetch('/settings', { method: 'POST', body: fd }).catch(() => {});
   window.location.href = '/journal';
 }
-
 </script>
 {% endblock %}

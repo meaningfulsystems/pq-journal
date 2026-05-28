@@ -225,7 +225,6 @@ async def generate_keys(
                     "emotion_min_seconds": 20,
                     "emotion_min_words": 10,
                     "enable_webcam": False,
-                    "enable_debug": False,
                 }
                 with open(settings_dir / "settings.yaml", "w") as f:
                     yaml.dump(settings_data, f, default_flow_style=False)

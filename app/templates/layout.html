@@ -78,15 +78,6 @@
     </div>
   </nav>
 
-  {% if enable_debug() and request.url.path not in ('/unlock', '/setup') %}
-  <div class="bg-red-950/50 border-b border-red-800 px-6 py-2 flex items-center gap-3">
-    <span class="text-red-400 text-sm font-bold">&#9888;</span>
-    <p class="text-xs text-red-300">
-      Debug mode is active &mdash; plain-text transcripts are being saved to disk unencrypted.
-      <a href="/settings" class="underline hover:text-red-100 ml-1">Change in Settings</a>
-    </p>
-  </div>
-  {% endif %}
 
   <!-- Main content -->
   <main class="flex-1 px-6 py-8 max-w-5xl mx-auto w-full">

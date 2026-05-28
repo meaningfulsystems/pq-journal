@@ -124,14 +124,6 @@ async def lifespan(app: FastAPI):
     # Note: init_db() and entries_dir creation happen at unlock time (not startup),
     # so the app root never needs to know where the journal lives.
 
-    # Warn if debug mode is enabled (unencrypted transcripts written to disk)
-    if cfg.enable_debug:
-        print(
-            "\n⚠  WARNING: debug mode is enabled.\n"
-            "   Journal transcripts will be written as PLAIN TEXT to:\n"
-            f"   {cfg.journal_dir}/debug/\n"
-            "   Disable in Settings before writing anything sensitive.\n"
-        )
 
     # Auto-detect best available Ollama model (awaited: fast network check, must complete before serving)
     await asyncio.get_event_loop().run_in_executor(

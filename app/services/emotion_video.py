@@ -74,6 +74,23 @@ def init_fer() -> None:
         logger.info(f"FER weights not found at {WEIGHTS_PATH}; trying DeepFace fallback")
 
     # ── Backend 2: DeepFace (auto-downloads weights) ─────────────────────────
+    # TensorFlow (required by DeepFace) uses AVX instructions at import time.
+    # On CPUs without AVX this raises SIGILL, which kills the entire process —
+    # it cannot be caught as a Python exception. Skip the import entirely.
+    cpu_flags = ""
+    try:
+        with open("/proc/cpuinfo") as _f:
+            for _line in _f:
+                if _line.startswith("flags"):
+                    cpu_flags = _line
+                    break
+    except OSError:
+        pass
+    if " avx " not in cpu_flags and not cpu_flags.endswith(" avx"):
+        logger.info("DeepFace skipped: CPU does not support AVX (required by TensorFlow); "
+                    "facial emotion detection disabled.")
+        return
+
     try:
         from deepface import DeepFace  # noqa: F401 — just test import
         _deepface_ready = True
