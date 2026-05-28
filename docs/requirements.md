@@ -141,14 +141,6 @@ This document specifies the functional, performance, and security requirements f
 
 ---
 
-#### R014 — Debug Mode Warning
-**Category:** CFG  
-**Statement:** When `enable_debug` is set to true, the system shall print a startup warning to stdout identifying the exact directory where plaintext transcripts will be written.  
-**Rationale:** Users must be informed when their data is being stored unencrypted.  
-**Verification:** Test — start app with enable_debug=true; verify warning printed to stdout
-
----
-
 #### R015 — Settings Persistence
 **Category:** CFG  
 **Statement:** After a settings save operation, the system shall reload its configuration cache so that subsequent requests use the updated values without requiring a process restart.  
@@ -705,13 +697,6 @@ This document specifies the functional, performance, and security requirements f
 
 ---
 
-#### R081 — Debug Log Save Authentication
-**Category:** FILE  
-**Statement:** The `/api/debug/save` endpoint shall require a valid authenticated session and shall sanitize filenames to contain only alphanumeric characters, hyphens, underscores, and periods.  
-**Rationale:** Prevents path traversal via filename injection; authentication prevents unauthorized writes.  
-**Verification:** Test — POST with filename "../../../etc/evil"; verify sanitized filename used; verify 401 without session
-
----
 
 #### R082 — Status Endpoint
 **Category:** FILE  
@@ -738,14 +723,6 @@ This document specifies the functional, performance, and security requirements f
 **Statement:** The settings page shall display the current journal directory, key directory, active STT engine, active emotion engine, and Ollama connectivity status.  
 **Rationale:** Users need a single view of system status alongside configurable settings.  
 **Verification:** Test — GET /settings with authenticated session; verify journal_dir and key_dir displayed
-
----
-
-#### R085 — Debug Mode Warning UI
-**Category:** SET  
-**Statement:** The settings page shall display a confirmation dialog before enabling debug mode, and when debug is enabled, shall display a persistent red warning banner showing the exact path where plaintext transcripts will be written.  
-**Rationale:** Users must be explicitly warned before enabling insecure behavior.  
-**Verification:** Inspection — read settings template; verify confirm dialog and conditional red banner
 
 ---
 
@@ -787,9 +764,9 @@ This document specifies the functional, performance, and security requirements f
 
 #### R090 — No Plaintext Entry Storage
 **Category:** SEC  
-**Statement:** Journal entry content shall never be written to disk in plaintext form except when `enable_debug` is explicitly true.  
+**Statement:** Journal entry content shall never be written to disk in plaintext form under any circumstances.  
 **Rationale:** Prevents content recovery without the passphrase.  
-**Verification:** Test — create entry with debug=false; verify no plaintext version exists anywhere on disk
+**Verification:** Test — create entry; verify no plaintext version exists anywhere on disk
 
 ---
 
@@ -798,14 +775,6 @@ This document specifies the functional, performance, and security requirements f
 **Statement:** All outbound HTTP requests to the Ollama endpoint shall enforce explicit timeouts: 3 seconds for model availability checks, 1.5 seconds for ping checks, 8 seconds for model generation calls.  
 **Rationale:** Prevents LLM slowness from blocking journal operations.  
 **Verification:** Test — configure Ollama to a non-responsive host; verify requests fail within stated timeouts
-
----
-
-#### R092 — Debug Mode Default Off
-**Category:** SEC  
-**Statement:** The `enable_debug` setting shall default to `false` and shall require explicit user confirmation to enable via the settings UI.  
-**Rationale:** Insecure behavior must be opt-in, not opt-out.  
-**Verification:** Test — initialize with no settings file; verify enable_debug is False
 
 ---
 
@@ -942,7 +911,6 @@ This document specifies the functional, performance, and security requirements f
 | R011 | CFG | Emotion Window Defaults | Test |
 | R012 | CFG | Emotion Window Validation | Test |
 | R013 | CFG | STT Model Selection | Test |
-| R014 | CFG | Debug Mode Warning | Test |
 | R015 | CFG | Settings Persistence | Test |
 | R016 | AUTH | Setup Key Generation | Test |
 | R017 | AUTH | Passphrase Minimum Length | Test |
@@ -1009,18 +977,15 @@ This document specifies the functional, performance, and security requirements f
 | R078 | FILE | Server-Side Directory Browser | Test |
 | R079 | FILE | Directory Name Validation | Test |
 | R080 | FILE | Removable Drive Enumeration | Test |
-| R081 | FILE | Debug Log Save Authentication | Test |
 | R082 | FILE | Status Endpoint | Test |
 | R083 | SET | Settings Page Authentication | Test |
 | R084 | SET | Settings Display | Test |
-| R085 | SET | Debug Mode Warning UI | Inspection |
 | R086 | SEC | No Swagger/ReDoc | Test |
 | R087 | SEC | Authenticated Journal Routes | Test |
 | R088 | SEC | Input Sanitization for Paths | Test |
 | R089 | SEC | No Plaintext Key Storage | Inspection |
 | R090 | SEC | No Plaintext Entry Storage | Test |
 | R091 | SEC | Ollama Timeout Enforcement | Test |
-| R092 | SEC | Debug Mode Default Off | Test |
 | R101 | SEC | Pre-Auth API Origin Validation | Test |
 | R102 | SEC | Authenticated Status Endpoint | Test |
 | R103 | SEC | Unlock Rate Limiting | Test |

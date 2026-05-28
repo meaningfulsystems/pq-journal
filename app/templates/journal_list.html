@@ -2,6 +2,77 @@
 {% block title %}Journal{% endblock %}
 
 {% block content %}
+
+{% if not ai_mode_configured %}
+<!-- First-run AI mode modal -->
+<div id="ai-mode-modal"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+  <div class="relative max-w-lg w-full mx-4 rounded-lg border border-border bg-panel shadow-2xl overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-8 pt-8 pb-4 border-b border-border">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="text-green-400">&#x1F512;</span>
+        <h2 class="text-lg font-semibold">Choose your journaling mode</h2>
+      </div>
+      <p class="text-xs text-muted">This is a one-time choice — you can change it anytime in Settings.</p>
+    </div>
+
+    <!-- Options -->
+    <div class="px-8 py-6 space-y-4">
+
+      <!-- Minimalist -->
+      <form method="post" action="/settings/set-ai-mode">
+        <input type="hidden" name="enable" value="false">
+        <button type="submit"
+                class="w-full text-left px-5 py-4 rounded border border-border bg-black/20 hover:border-muted hover:bg-white/5 transition-all group">
+          <div class="flex items-start gap-3">
+            <span class="text-xl mt-0.5">&#9997;&#65039;</span>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-medium text-sm">Minimalist — just write</span>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-green-900/40 border border-green-800/50 text-green-400">Default</span>
+              </div>
+              <p class="text-xs text-muted leading-relaxed">
+                Type or paste your thoughts. Entries are encrypted with post-quantum cryptography and stay entirely on this device. No microphone, no camera, no AI model required.
+              </p>
+            </div>
+          </div>
+        </button>
+      </form>
+
+      <!-- AI Mode -->
+      <form method="post" action="/settings/set-ai-mode">
+        <input type="hidden" name="enable" value="true">
+        <button type="submit"
+                class="w-full text-left px-5 py-4 rounded border border-border bg-black/20 hover:border-accent hover:bg-accent/5 transition-all group">
+          <div class="flex items-start gap-3">
+            <span class="text-xl mt-0.5">&#x1F3A4;</span>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-medium text-sm">AI Mode — voice, emotion &amp; analysis</span>
+              </div>
+              <p class="text-xs text-muted leading-relaxed">
+                Adds voice-to-text dictation, real-time emotional tone analysis via a local LLM (Ollama), and optional facial emotion detection. Requires additional software. A performance test will be offered after enabling.
+              </p>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <span class="text-xs px-1.5 py-0.5 rounded border border-border text-subtle">&#x1F399; Voice-to-text</span>
+                <span class="text-xs px-1.5 py-0.5 rounded border border-border text-subtle">&#x1F9E0; LLM emotion summary</span>
+                <span class="text-xs px-1.5 py-0.5 rounded border border-border text-subtle">&#x1F4F8; Facial detection</span>
+              </div>
+            </div>
+          </div>
+        </button>
+      </form>
+
+    </div>
+
+    <div class="px-8 pb-6">
+      <p class="text-xs text-muted/60">All processing is local. Nothing is sent to the cloud.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
 <!-- Security + location info bar -->
 <div class="mb-6 px-4 py-3 rounded border border-border bg-panel flex flex-wrap items-center justify-between gap-3">
   <div class="flex items-center gap-2">

@@ -247,7 +247,6 @@ Add `require_unlocked` dependency to `/api/status`. The endpoint is only called 
 | Directory traversal | Path.resolve() + whitelist validation on mkdir; /api/browse |
 | Unauthenticated access | `require_unlocked` dependency on all data routes |
 | API documentation exposure | Swagger UI and ReDoc disabled (R086) |
-| Debug log plaintext | Default off (R092); startup warning (R014); UI confirmation dialog |
 
 ### 4.2 Cryptographic Primitive Justifications
 
@@ -288,7 +287,6 @@ This section shows how each design decision satisfies the system requirements.
 | R011 | Emotion Window Defaults | 30/20/10 defaults in Settings class | config.py |
 | R012 | Emotion Window Validation | `max(emotion_min_seconds, emotion_window_seconds)` in save handler | settings.py |
 | R013 | STT Model Selection | `stt_model` config field passed to STT init | config.py, stt.py |
-| R014 | Debug Mode Warning | Startup print in lifespan if enable_debug | main.py |
 | R015 | Settings Persistence | cache_clear() + env var update after each save | settings.py |
 
 ### 5.3 Authentication Requirements
@@ -390,7 +388,6 @@ This section shows how each design decision satisfies the system requirements.
 | R078 | Directory Browser | GET /api/browse → browse_directory() | files.py, key_store.py |
 | R079 | Directory Name Validation | Reject `/`, `\`, `.`, `..`, empty in mkdir | files.py |
 | R080 | Drive Enumeration | `detect_removable_drives()` using psutil partitions | key_store.py |
-| R081 | Debug Save Auth | `require_unlocked` + regex filename sanitization | files.py |
 | R082 | Status Endpoint | GET /api/status returns all engine states | files.py |
 
 ### 5.10 Settings Requirements
@@ -399,7 +396,6 @@ This section shows how each design decision satisfies the system requirements.
 |----|-------------|---------------|---------|
 | R083 | Settings Auth | `require_unlocked` on GET and POST /settings | settings.py |
 | R084 | Settings Display | Journal dir, key dir, engine badges in template | settings.html |
-| R085 | Debug Warning UI | Confirm dialog + red banner in settings template | settings.html |
 
 ### 5.11 Security Requirements
 
@@ -411,7 +407,6 @@ This section shows how each design decision satisfies the system requirements.
 | R089 | No Plaintext Keys | Key files always PBKDF2 + AES-GCM encrypted | key_store.py |
 | R090 | No Plaintext Entries | encrypt_entry() always called before write | journal.py |
 | R091 | Ollama Timeouts | 3s availability, 1.5s ping, 8s generation | llm.py, files.py |
-| R092 | Debug Default Off | `enable_debug: bool = False` in Settings | config.py |
 | R101 | Pre-Auth API Origin Validation | `_check_origin()` dependency on browse/mkdir/drives/home | files.py |
 | R102 | Authenticated Status Endpoint | `require_unlocked` on `/api/status` | files.py |
 | R103 | Unlock Rate Limiting | `_UNLOCK_ATTEMPTS` counter; 2s delay; 429 at 10 failures/5min | auth.py |

@@ -72,7 +72,6 @@ async function startRecording() {
     // Capture textarea natural height for auto-grow
     const ta = document.getElementById('entry-body');
     if (ta) _taOrigHeight = ta.scrollHeight;
-    if (typeof dbg === 'function') dbg('WebSocket opened. Recording started.');
     if (typeof onRecordingStart === 'function') onRecordingStart();
   };
 
@@ -81,12 +80,11 @@ async function startRecording() {
       const msg = JSON.parse(event.data);
       handleServerMessage(msg);
     } catch (e) {
-      if (typeof dbg === 'function') dbg('WS message parse error: ' + e);
+      // ignore malformed messages
     }
   };
 
   ws.onclose = ws.onerror = () => {
-    if (typeof dbg === 'function') dbg('WebSocket closed/error.');
     if (isRecording) stopRecording();
   };
 }
@@ -243,16 +241,8 @@ async function _fetchAndShowEngineStatus() {
     _badge('status-llm', llmLabel, data.llm_ok);
 
     statusRow.classList.remove('hidden');
-
-    if (typeof dbg === 'function') {
-      const llmStatus = data.llm_ok
-        ? data.ollama_model + ' ✓'
-        : (data.ollama_available ? data.ollama_model + ' (no response)' : 'OFFLINE');
-      const ferStatus = data.fer_engine && data.fer_engine !== 'none' ? data.fer_engine + ' ✓' : 'none';
-      dbg(`Engine status — STT:${data.stt_engine} | HF:${data.emotion_engine} | FER:${ferStatus} | LLM:${llmStatus} | emotion window:${windowSec}s / min:${minSec}s / min-words:${_emotionMinWords}`);
-    }
   } catch (e) {
-    if (typeof dbg === 'function') dbg('ERROR fetching /api/status: ' + e);
+    // status row stays hidden if fetch fails
   }
 }
 
@@ -260,7 +250,6 @@ function handleServerMessage(msg) {
   switch (msg.type) {
     case 'transcribing':
       document.getElementById('partial-transcript').textContent = '…transcribing';
-      if (typeof dbg === 'function') dbg('Transcribing audio buffer...');
       break;
 
     case 'partial':
@@ -268,7 +257,6 @@ function handleServerMessage(msg) {
       break;
 
     case 'final': {
-      if (typeof dbg === 'function') dbg(`Final transcript: "${msg.text.slice(0, 80)}${msg.text.length > 80 ? '…' : ''}"`);
       // Accumulate for next live_summary call
       _transcriptBuffer += (_transcriptBuffer ? ' ' : '') + msg.text;
 
@@ -296,17 +284,12 @@ function handleServerMessage(msg) {
             _growAndScrollTextarea(ta2);
             if (typeof _scheduleAutoSave === 'function') _scheduleAutoSave();
           }
-          if (typeof dbg === 'function') dbg(`Emotion tag (after 2s silence): ${tag}`);
           if (typeof triggerAnalyze === 'function') setTimeout(triggerAnalyze, 800);
         }, 2000);
-        if (typeof dbg === 'function') dbg('LLM text ready — waiting 2s silence before appending tag');
-      } else {
-        if (typeof dbg === 'function') dbg('LLM text: none — tag skipped');
       }
 
       // Auto-analyze emotion after each transcription chunk
       if (typeof triggerAnalyze === 'function') {
-        if (typeof dbg === 'function') dbg('Triggering emotion analyze...');
         setTimeout(triggerAnalyze, 800);
       }
       break;
@@ -328,13 +311,8 @@ function handleServerMessage(msg) {
         const avgD = snapshot.reduce((s, x) => s + x.D, 0) / snapshot.length;
         const faceEmotion = (typeof _dominantEmotion === 'function') ? _dominantEmotion() : '';
         const transcriptSnap = _transcriptBuffer;
-        // Don't clear buffer yet — only clear when we actually send (so short bursts accumulate)
         const wordCount = transcriptSnap.trim().split(/\s+/).filter(w => w.length > 0).length;
-        const windowSec = Math.round(_emotionWindowReadings * 0.5);
-        if (typeof dbg === 'function') dbg(`${windowSec}s window complete. transcript: ${wordCount} words — avg V:${avgV.toFixed(2)} A:${avgA.toFixed(2)} D:${avgD.toFixed(2)}`);
-        if (wordCount < _emotionMinWords) {
-          if (typeof dbg === 'function') dbg(`Skipping live_summary — only ${wordCount} words (min: ${_emotionMinWords}), buffering for next window`);
-        } else {
+        if (wordCount >= _emotionMinWords) {
           _transcriptBuffer = ''; // consumed
           const fd = new FormData();
           fd.append('vad_v', avgV.toFixed(4));
@@ -345,20 +323,12 @@ function handleServerMessage(msg) {
           fetch('/emotion/live_summary', { method: 'POST', body: fd })
             .then(r => r.json())
             .then(data => {
-              if (typeof dbg === 'function') dbg(`live_summary response: ${JSON.stringify(data)} [source: ${data.source || 'unknown'}]`);
               if (data.summary) {
                 _lastLlmEmotionText = data.summary;
-                if (typeof dbg === 'function') dbg(`Emotion set: "${data.summary}" (${data.source === 'fallback' ? 'FALLBACK — LLM matched rule-based or failed' : 'LLM ✓'})`);
               }
             })
-            .catch(e => {
-              if (typeof dbg === 'function') dbg(`live_summary FAILED: ${e}`);
-            });
+            .catch(() => {});
         }
-      } else if (_emotionWindow.length % 20 === 0 && typeof dbg === 'function') {
-        const elapsed = Math.round(_emotionWindow.length * 0.5);
-        const total = Math.round(_emotionWindowReadings * 0.5);
-        dbg(`VAD window: ${_emotionWindow.length}/${_emotionWindowReadings} readings (${elapsed}s / ${total}s)`);
       }
       break;
 

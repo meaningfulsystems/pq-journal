@@ -29,9 +29,12 @@ class Settings(BaseSettings):
     emotion_min_seconds: int = 20      # floor — never fire faster than this
     emotion_min_words: int = 10        # skip LLM call if transcript has fewer words
 
+    # Mode
+    ai_mode: bool = False           # master switch for all AI features
+    ai_mode_configured: bool = False  # True once user has been prompted
+
     # Features
     enable_webcam: bool = False
-    enable_debug: bool = False
 
     # Server
     host: str = "127.0.0.1"

@@ -89,28 +89,6 @@ async def make_directory(request: Request, body: MkdirRequest) -> JSONResponse:
         return JSONResponse({"error": str(exc)}, status_code=400)
 
 
-class DebugSaveRequest(BaseModel):
-    filename: str
-    content: str
-
-
-@router.post("/debug/save")
-async def save_debug_log(body: DebugSaveRequest, _session: SessionData = Depends(require_unlocked)) -> JSONResponse:
-    """Save debug log text to {journal_dir}/debug/YYYYMMDD-HHMM_debug.txt."""
-    from app.config import get_settings
-    import re
-
-    # Sanitise filename — allow only safe chars
-    name = re.sub(r'[^a-zA-Z0-9_\-.]', '_', body.filename)
-    if not name.endswith('.txt'):
-        name += '.txt'
-
-    debug_dir = get_settings().journal_dir / "debug"
-    debug_dir.mkdir(parents=True, exist_ok=True)
-    path = debug_dir / name
-    path.write_text(body.content, encoding="utf-8")
-    return JSONResponse({"saved": str(path)})
-
 
 @router.get("/ping")
 async def ping(session: SessionData = Depends(require_unlocked)) -> JSONResponse:
@@ -173,6 +151,7 @@ async def get_status(_session: SessionData = Depends(require_unlocked)) -> JSONR
         "emotion_window_seconds": cfg.emotion_window_seconds,
         "emotion_min_seconds": cfg.emotion_min_seconds,
         "emotion_min_words": cfg.emotion_min_words,
+        "ai_mode": cfg.ai_mode,
     })
 
 

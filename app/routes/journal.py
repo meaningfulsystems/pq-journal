@@ -88,6 +88,7 @@ async def list_entries(
             "entries": [e.to_dict() for e in entries],
             "journal_dir": str(cfg.journal_dir),
             "key_dir": session.key_dir,
+            "ai_mode_configured": cfg.ai_mode_configured,
         },
     )
 
@@ -105,7 +106,8 @@ async def new_entry(
     cfg = get_settings()
     return templates.TemplateResponse(
         "entry_editor.html",
-        {"request": request, "entry": None, "prompt": prompt, "enable_webcam": cfg.enable_webcam},
+        {"request": request, "entry": None, "prompt": prompt,
+         "enable_webcam": cfg.enable_webcam and cfg.ai_mode},
     )
 
 
@@ -350,7 +352,7 @@ async def edit_entry(
             "entry": payload,
             "meta": db_entry.to_dict(),
             "prompt": prompt,
-            "enable_webcam": cfg.enable_webcam,
+            "enable_webcam": cfg.enable_webcam and cfg.ai_mode,
         },
     )
 

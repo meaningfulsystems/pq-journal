@@ -40,8 +40,10 @@
              placeholder="Tags (comma separated)"
              class="w-full bg-transparent border-none outline-none text-xs text-subtle placeholder-muted">
 
-      <!-- Recording panel (Slice 2+) -->
+      <!-- Recording panel — only in AI mode -->
+      {% if ai_mode() %}
       {% include "components/recording_panel.html" %}
+      {% endif %}
 
       <!-- Body textarea -->
       <textarea name="body" id="entry-body"
@@ -82,7 +84,8 @@
     </form>
   </div>
 
-  <!-- Sidebar: emotion + prompt -->
+  {% if ai_mode() %}
+  <!-- Sidebar: emotion + prompt (AI mode only) -->
   <div class="w-64 shrink-0 space-y-4">
 
     {% if enable_webcam %}
@@ -92,7 +95,6 @@
              class="w-full rounded border border-border hidden"
              style="max-height:240px;object-fit:cover"></video>
       <canvas id="webcam-canvas" class="hidden" width="320" height="240"></canvas>
-      <!-- Real-time emotion under webcam -->
       <div id="realtime-emotion-display"
            class="text-center py-2 px-3 rounded border border-border bg-panel min-h-[2.5rem] flex items-center justify-center">
         <span id="realtime-emotion-text" class="text-sm text-subtle italic">—</span>
@@ -107,13 +109,13 @@
     </div>
     {% endif %}
 
-    <!-- Emotion panel (auto-updated, replaces itself via HTMX) -->
+    <!-- Emotion panel -->
     <div id="emotion-panel" class="space-y-4 hidden">
       <div class="text-xs text-subtle uppercase tracking-widest">Emotion</div>
       <div id="emotion-results" class="space-y-2"></div>
     </div>
 
-    <!-- Hidden analyze trigger button -->
+    <!-- Analyze button -->
     <button id="analyze-btn" type="button"
             hx-post="/emotion/analyze"
             hx-include="#entry-body,#vad-summary,#face-emotion"
@@ -131,31 +133,28 @@
     </div>
 
   </div>
-</div>
-
-{% if enable_debug() %}
-<!-- Debug panel -->
-<div class="mt-8 border-t border-yellow-900/30 pt-4">
-  <div class="flex items-center justify-between mb-2">
-    <span class="text-xs text-yellow-500 font-mono uppercase tracking-widest">Debug Log</span>
-    <div class="flex gap-2">
-      <button type="button" onclick="copyDebugLog()"
-              class="px-2 py-1 text-xs border border-yellow-900 rounded text-yellow-500 hover:bg-yellow-900/20 transition-colors">Copy</button>
-      <button type="button" onclick="clearDebugLog()"
-              class="px-2 py-1 text-xs border border-border rounded text-muted hover:text-primary transition-colors">Clear</button>
+  {% else %}
+  <!-- Minimalist: just a prompt sidebar, no AI panel -->
+  <div class="w-64 shrink-0 space-y-4">
+    <div id="prompt-container">
+      {% include "components/prompt_sidebar.html" %}
+    </div>
+    <div class="px-3 py-3 rounded border border-border bg-panel/40 text-center">
+      <p class="text-xs text-muted">AI features are off.</p>
+      <a href="/settings" class="text-xs text-accent hover:underline">Enable in Settings →</a>
     </div>
   </div>
-  <textarea id="debug-log" readonly rows="12"
-            class="w-full bg-black/40 border border-yellow-900/50 rounded px-3 py-2 text-xs font-mono text-yellow-200/80 resize-y focus:outline-none"
-            placeholder="Debug output will appear here during recording..."></textarea>
+  {% endif %}
 </div>
-{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>const ENABLE_WEBCAM = {{ enable_webcam | tojson }};
-const ENABLE_DEBUG = {{ enable_debug() | tojson }};</script>
+const AI_MODE = {{ ai_mode() | tojson }};</script>
+{% if ai_mode() %}
 <script src="/static/js/recorder.js"></script>
+{% endif %}
 <script>
 // ── Auto-save ────────────────────────────────────────────────────────────────
 let _autoSaveTimer = null;
@@ -211,7 +210,7 @@ function scheduleAnalyze() {
   _analyzeTimer = setTimeout(triggerAnalyze, 8000);
 }
 
-document.getElementById('entry-body').addEventListener('input', scheduleAnalyze);
+if (AI_MODE) document.getElementById('entry-body').addEventListener('input', scheduleAnalyze);
 
 // Called by recorder.js after recording stops
 function onRecordingStop() {
@@ -232,65 +231,6 @@ function updateRealtimeEmotion(label) {
   }
 }
 
-// ── Debug log ─────────────────────────────────────────────────────────────────
-const _DBG_KEY = 'pqj_debug_log';
-
-// Generate a fixed filename for this browser session (YYYYMMDD-HHMM)
-function _debugFilename() {
-  let name = sessionStorage.getItem('pqj_debug_filename');
-  if (!name) {
-    const d = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    name = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}_debug.txt`;
-    sessionStorage.setItem('pqj_debug_filename', name);
-  }
-  return name;
-}
-
-let _dbgSaveTimer = null;
-function _scheduleDebugSave() {
-  if (_dbgSaveTimer) clearTimeout(_dbgSaveTimer);
-  _dbgSaveTimer = setTimeout(_saveDebugToDisk, 2000);
-}
-async function _saveDebugToDisk() {
-  const content = sessionStorage.getItem(_DBG_KEY) || '';
-  if (!content) return;
-  try {
-    await fetch('/api/debug/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: _debugFilename(), content }),
-    });
-  } catch (e) { /* silently ignore disk errors */ }
-}
-
-function dbg(msg) {
-  if (!ENABLE_DEBUG) return;
-  const ts = new Date().toLocaleTimeString();
-  const line = `[${ts}] ${msg}\n`;
-  const existing = sessionStorage.getItem(_DBG_KEY) || '';
-  sessionStorage.setItem(_DBG_KEY, existing + line);
-  const el = document.getElementById('debug-log');
-  if (el) { el.value = sessionStorage.getItem(_DBG_KEY); el.scrollTop = el.scrollHeight; }
-  _scheduleDebugSave();
-}
-function copyDebugLog() {
-  const text = sessionStorage.getItem(_DBG_KEY) || '';
-  navigator.clipboard.writeText(text);
-  const btns = document.querySelectorAll('[onclick="copyDebugLog()"]');
-  btns.forEach(b => { const o = b.textContent; b.textContent = 'Copied!'; setTimeout(() => b.textContent = o, 1500); });
-}
-function clearDebugLog() {
-  sessionStorage.removeItem(_DBG_KEY);
-  sessionStorage.removeItem('pqj_debug_filename');
-  const el = document.getElementById('debug-log');
-  if (el) el.value = '';
-}
-// Restore log on page load
-document.addEventListener('DOMContentLoaded', () => {
-  const el = document.getElementById('debug-log');
-  if (el) { el.value = sessionStorage.getItem(_DBG_KEY) || ''; el.scrollTop = el.scrollHeight; }
-});
 </script>
 {% if enable_webcam %}
 <script src="/static/js/webcam.js"></script>

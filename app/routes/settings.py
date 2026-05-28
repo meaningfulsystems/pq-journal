@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 from pathlib import Path
 
 import httpx
@@ -59,9 +58,6 @@ async def settings_page(
     except ImportError:
         pass
 
-    debug_dir = settings.journal_dir / "debug"
-    debug_file_count = len(list(debug_dir.glob("*"))) if debug_dir.exists() else 0
-
     return templates.TemplateResponse(
         "settings.html",
         {
@@ -75,7 +71,7 @@ async def settings_page(
             "prompt_count": prompt_count,
             "saved": saved,
             "key_dir": session.key_dir,
-            "debug_file_count": debug_file_count,
+            "ai_mode_configured": settings.ai_mode_configured,
         },
     )
 
@@ -93,9 +89,10 @@ async def save_settings(
     emotion_min_seconds: int = Form(20),
     emotion_min_words: int = Form(10),
     enable_webcam: str = Form(None),
-    enable_debug: str = Form(None),
+    ai_mode: str = Form(None),
 ):
     """Persist settings to {journal_dir}/settings/settings.yaml."""
+    cfg = get_settings()
     settings_data = {
         "auto_lock_minutes": auto_lock_minutes,
         "stt_model": stt_model,
@@ -105,18 +102,17 @@ async def save_settings(
         "emotion_min_seconds": emotion_min_seconds,
         "emotion_min_words": emotion_min_words,
         "enable_webcam": enable_webcam == "true",
-        "enable_debug": enable_debug == "true",
+        "ai_mode": ai_mode == "true",
+        "ai_mode_configured": True,
     }
     if vosk_model_dir.strip():
         settings_data["vosk_model_dir"] = vosk_model_dir.strip()
 
     try:
-        cfg = get_settings()
         settings_path = cfg.settings_path
         settings_path.parent.mkdir(parents=True, exist_ok=True)
         with open(settings_path, "w") as f:
             yaml.dump(settings_data, f, default_flow_style=False, allow_unicode=True)
-        # Push new values into env vars so cache reload picks them up correctly
         for k, v in settings_data.items():
             os.environ[k.upper()] = str(v)
         get_settings.cache_clear()
@@ -126,17 +122,37 @@ async def save_settings(
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 
-@router.post("/settings/clear-debug")
-async def clear_debug_data(
+@router.post("/settings/set-ai-mode")
+async def set_ai_mode(
     request: Request,
     session: SessionData = Depends(require_unlocked),
+    enable: str = Form(...),
 ):
-    """Delete the entire debug folder from the journal directory."""
-    debug_dir = get_settings().journal_dir / "debug"
+    """First-run: record the user's AI mode choice and save it."""
+    cfg = get_settings()
+    enabled = enable == "true"
+
+    existing: dict = {}
     try:
-        if debug_dir.exists():
-            shutil.rmtree(debug_dir)
-            logger.info("Debug folder deleted: %s", debug_dir)
+        if cfg.settings_path.exists():
+            with open(cfg.settings_path) as f:
+                existing = yaml.safe_load(f) or {}
+    except Exception:
+        pass
+
+    existing["ai_mode"] = enabled
+    existing["ai_mode_configured"] = True
+
+    try:
+        cfg.settings_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cfg.settings_path, "w") as f:
+            yaml.dump(existing, f, default_flow_style=False, allow_unicode=True)
+        os.environ["AI_MODE"] = str(enabled)
+        os.environ["AI_MODE_CONFIGURED"] = "True"
+        get_settings.cache_clear()
     except Exception as e:
-        logger.error("Failed to delete debug folder: %s", e)
-    return RedirectResponse("/settings?saved=1", status_code=303)
+        logger.error(f"Failed to save ai_mode: {e}")
+
+    if enabled:
+        return RedirectResponse("/settings?saved=1&ai_just_enabled=1", status_code=303)
+    return RedirectResponse("/journal", status_code=303)
