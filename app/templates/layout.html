@@ -94,13 +94,105 @@
   {% block scripts %}{% endblock %}
 
   {% if request.url.path not in ('/unlock', '/setup') %}
+
+  <!-- Auto-lock warning dialog (shown when session is about to expire during recording) -->
+  <div id="lock-warning-overlay"
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 hidden"
+       aria-modal="true" role="dialog">
+    <div class="bg-panel border border-border rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+      <h2 class="text-base font-semibold text-primary mb-2">Session expiring</h2>
+      <p class="text-sm text-subtle mb-4">
+        Your journal will lock due to inactivity. You are currently recording.
+        Do you want to keep recording?
+      </p>
+      <p class="text-sm text-accent font-mono mb-5">
+        Locking in <span id="lock-warning-countdown">30</span>s…
+      </p>
+      <div class="flex gap-3">
+        <button id="lock-warning-keep"
+                class="flex-1 px-4 py-2 rounded border border-accent text-accent text-sm hover:bg-accent/10 transition-colors">
+          Keep recording
+        </button>
+        <button id="lock-warning-stop"
+                class="flex-1 px-4 py-2 rounded border border-border text-subtle text-sm hover:border-muted hover:text-primary transition-colors">
+          Stop &amp; lock
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
-  // ── Session expiry: redirect to /unlock on 401 ───────────────────────────────
-  // Handles both HTMX responses and periodic background pings.
+  // ── Session expiry handling ───────────────────────────────────────────────────
+  // The /api/ping endpoint does NOT touch the session idle timer, so the timer
+  // reflects genuine inactivity. When the session expires:
+  //   • Not recording → redirect to /unlock immediately.
+  //   • Recording active → show a 30-second "keep recording?" dialog first.
+
+  var _lockWarningTimer = null;
+  var _lockCountdownInterval = null;
 
   function _sessionExpired() {
-    window.location.href = '/unlock';
+    var recording = (typeof window._pqIsRecording !== 'undefined') && window._pqIsRecording;
+    if (recording) {
+      _showRecordingLockWarning(0);
+    } else {
+      window.location.href = '/unlock';
+    }
   }
+
+  // Exposed so recorder.js can call it when server sends lock_warning over WS
+  function _showRecordingLockWarning(secondsRemaining) {
+    var overlay = document.getElementById('lock-warning-overlay');
+    if (!overlay || !overlay.classList.contains('hidden')) return; // already showing
+    overlay.classList.remove('hidden');
+
+    var countdown = 30;
+    document.getElementById('lock-warning-countdown').textContent = countdown;
+
+    _lockCountdownInterval = setInterval(function() {
+      countdown--;
+      var el = document.getElementById('lock-warning-countdown');
+      if (el) el.textContent = countdown;
+      if (countdown <= 0) _triggerLock();
+    }, 1000);
+
+    _lockWarningTimer = setTimeout(_triggerLock, 30000);
+  }
+
+  function _dismissLockWarning() {
+    var overlay = document.getElementById('lock-warning-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    if (_lockWarningTimer) { clearTimeout(_lockWarningTimer); _lockWarningTimer = null; }
+    if (_lockCountdownInterval) { clearInterval(_lockCountdownInterval); _lockCountdownInterval = null; }
+  }
+
+  function _triggerLock() {
+    _dismissLockWarning();
+    if (typeof forceStopAndLock === 'function') {
+      forceStopAndLock();
+    } else {
+      // /lock is POST-only
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/lock';
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+
+  document.getElementById('lock-warning-keep').addEventListener('click', function() {
+    _dismissLockWarning();
+    // Touch the session so the idle timer resets, then tell the WS server too
+    fetch('/api/touch', { method: 'POST', credentials: 'same-origin' }).catch(function() {});
+    if (window._pqWs && window._pqWs.readyState === WebSocket.OPEN) {
+      window._pqWs.send(JSON.stringify({ type: 'keep_recording' }));
+    }
+  });
+
+  document.getElementById('lock-warning-stop').addEventListener('click', function() {
+    _dismissLockWarning();
+    _triggerLock();
+  });
 
   // Intercept HTMX 401 responses globally
   document.addEventListener('htmx:responseError', function(evt) {
@@ -109,16 +201,30 @@
     }
   });
 
-  // Periodic ping — checks session is still alive.
-  // Also fires immediately when the tab becomes visible again (handles lid-close / overnight).
+  // Periodic ping — does NOT reset the idle timer (uses peek_session server-side).
+  // Also fires immediately when the tab becomes visible again.
   (function _startPing() {
     function _ping() {
       fetch('/api/ping', { credentials: 'same-origin' })
-        .then(function(r) { if (r.status === 401) _sessionExpired(); })
+        .then(function(r) {
+          if (r.status === 401) { _sessionExpired(); return; }
+          return r.json();
+        })
+        .then(function(data) {
+          if (!data) return;
+          var remaining = data.timeout_seconds - data.idle_seconds;
+          // Warn 90 seconds before expiry if recording is active
+          if (remaining <= 90) {
+            var recording = (typeof window._pqIsRecording !== 'undefined') && window._pqIsRecording;
+            if (recording) {
+              _showRecordingLockWarning(remaining);
+            }
+            // Non-recording expiry is handled by the sweeper → next ping returns 401
+          }
+        })
         .catch(function() { /* network error — ignore */ });
     }
     setInterval(_ping, 60000);
-    // Fire immediately on tab focus / visibility restore
     document.addEventListener('visibilitychange', function() {
       if (document.visibilityState === 'visible') _ping();
     });

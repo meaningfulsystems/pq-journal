@@ -29,6 +29,10 @@ async def get_session_data(
         return None
     settings = get_settings()
     max_idle = settings.auto_lock_minutes * 60
+    # Background recording calls (emotion analysis, status checks) must not
+    # reset the idle timer — otherwise the session never expires during recording.
+    if request.headers.get("X-Background") == "1":
+        return session_svc.peek_session(pqj_session, max_idle_seconds=max_idle)
     return session_svc.get_session(pqj_session, max_idle_seconds=max_idle)
 
 

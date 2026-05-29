@@ -143,7 +143,7 @@ async def lifespan(app: FastAPI):
     asyncio.get_event_loop().run_in_executor(None, video_svc.init_fer)
 
     # Start background auto-lock sweeper
-    sweeper_task = asyncio.create_task(_auto_lock_sweeper(cfg.auto_lock_minutes * 60))
+    sweeper_task = asyncio.create_task(_auto_lock_sweeper())
 
     yield
 
@@ -152,13 +152,22 @@ async def lifespan(app: FastAPI):
     session_svc.destroy_all_sessions()
 
 
-async def _auto_lock_sweeper(max_idle_seconds: float) -> None:
+async def _auto_lock_sweeper() -> None:
     """Background task: remove expired sessions every 60 seconds."""
     while True:
         await asyncio.sleep(60)
+        # Re-read settings each cycle so per-journal timeout changes take effect
+        max_idle_seconds = get_settings().auto_lock_minutes * 60
+        idle_report = session_svc.get_session_idle_times()
+        for sid_prefix, idle in idle_report:
+            remaining = max(0.0, max_idle_seconds - idle)
+            print(
+                f"[auto-lock] Session {sid_prefix}: idle={idle:.0f}s  "
+                f"remaining={remaining:.0f}s / {max_idle_seconds:.0f}s"
+            )
         removed = session_svc.sweep_expired_sessions(max_idle_seconds)
         if removed:
-            print(f"[auto-lock] Removed {removed} expired session(s)")
+            print(f"[auto-lock] Locked {removed} session(s) due to inactivity")
 
 
 app = FastAPI(
