@@ -5,6 +5,8 @@
 A local-first, privacy-preserving personal journal that encrypts entries at rest using hybrid post-quantum key protection, with optional local voice transcription and emotion-reflection features.  
 Built by [Meaningful Systems, LLC](https://meaningfulsystems.com).
 
+![PQ Journal demo](docs/screenshots/Screenshot%20PQ%20Journal.png)
+
 ---
 
 ## Table of contents
@@ -26,7 +28,6 @@ Built by [Meaningful Systems, LLC](https://meaningfulsystems.com).
 - [Backup and recovery](#backup-and-recovery)
 - [Uninstalling](#uninstalling)
 - [Known issues](#known-issues)
-- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Project structure](#project-structure)
 - [Development](#development)
@@ -449,18 +450,6 @@ Optional AI models may be cached by HuggingFace (`~/.cache/huggingface`), Whispe
 
 ---
 
-## Roadmap
-
-- Packaged desktop release (no command-line setup required)
-- Easier Windows installer
-- Backup and restore wizard
-- Import from plain-text or Markdown journals
-- Independent security audit
-- More transparent emotion model controls and explainability
-- Additional language support for speech-to-text
-
----
-
 ## Contributing
 
 Helpful contributions include:
@@ -532,8 +521,6 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 pip install pytest httpx
 pytest
 ```
-
-The `archive/` directory contains the original PyQt6 desktop app from which this project was derived. Reference only.
 
 ---
 
