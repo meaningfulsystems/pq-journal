@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, UploadFile, WebSocket, WebSocketDisconnect
@@ -62,19 +63,23 @@ def _vad_label(V: float, A: float, D: float) -> str:
     return "neutral"
 
 
-async def _auth_ws(websocket: WebSocket) -> Optional[object]:
-    """Return session data from the session cookie in the WS handshake, or None."""
+# How often to re-validate the session during recording (seconds)
+WS_SESSION_CHECK_INTERVAL = 30
+
+
+async def _auth_ws(websocket: WebSocket) -> tuple[Optional[object], Optional[str]]:
+    """Return (session, token) from the WS handshake cookie, or (None, None)."""
     cookie_header = websocket.cookies.get(SESSION_COOKIE)
     if not cookie_header:
-        return None
+        return None, None
     settings = get_settings()
     max_idle = settings.auto_lock_minutes * 60
-    return session_svc.get_session(cookie_header, max_idle_seconds=max_idle)
+    return session_svc.get_session(cookie_header, max_idle_seconds=max_idle), cookie_header
 
 
 @router.websocket("/ws/record")
 async def ws_record(websocket: WebSocket):
-    session = await _auth_ws(websocket)
+    session, token = await _auth_ws(websocket)
     if session is None:
         await websocket.close(code=4401)
         return
@@ -93,6 +98,9 @@ async def ws_record(websocket: WebSocket):
     vad_d_sum = 0.0
     vad_count = 0
 
+    last_session_check = time.monotonic()
+    lock_warning_sent = False
+
     # Immediately tell client which STT engine is active
     await websocket.send_text(
         json.dumps({"type": "stt_engine", "engine": get_active_engine()})
@@ -104,7 +112,51 @@ async def ws_record(websocket: WebSocket):
 
     try:
         while True:
-            msg = await websocket.receive()
+            # Periodic session check — peek without touching so idle timer is accurate
+            now = time.monotonic()
+            if now - last_session_check >= WS_SESSION_CHECK_INTERVAL:
+                last_session_check = now
+                settings = get_settings()
+                max_idle = settings.auto_lock_minutes * 60
+                current = session_svc.peek_session(token, max_idle_seconds=max_idle)
+                if current is None:
+                    # Session expired — warn client then close
+                    logger.info("[auto-lock] Recording: session expired, closing WebSocket")
+                    if not lock_warning_sent:
+                        await websocket.send_text(
+                            json.dumps({"type": "lock_warning", "seconds_remaining": 0})
+                        )
+                    await asyncio.sleep(0.3)
+                    await websocket.close(code=4401)
+                    return
+                idle = now - current.last_activity
+                seconds_remaining = max(0.0, max_idle - idle)
+                # Warn threshold: last 60s before expiry, but never more than half the
+                # timeout (avoids spamming the dialog for short timeouts like 1 min).
+                warn_threshold = min(60.0, max_idle * 0.5)
+                logger.info(
+                    f"[auto-lock] Recording: idle={idle:.0f}s  remaining={seconds_remaining:.0f}s"
+                    f"  timeout={max_idle:.0f}s  warn_at={warn_threshold:.0f}s"
+                )
+                if seconds_remaining <= warn_threshold and not lock_warning_sent:
+                    lock_warning_sent = True
+                    logger.info(
+                        f"[auto-lock] Recording: sending lock_warning ({seconds_remaining:.0f}s remaining)"
+                    )
+                    await websocket.send_text(
+                        json.dumps({
+                            "type": "lock_warning",
+                            "seconds_remaining": int(seconds_remaining),
+                        })
+                    )
+                elif seconds_remaining > warn_threshold:
+                    # Session was refreshed (user kept recording) — allow warning again
+                    lock_warning_sent = False
+
+            try:
+                msg = await asyncio.wait_for(websocket.receive(), timeout=WS_SESSION_CHECK_INTERVAL)
+            except asyncio.TimeoutError:
+                continue
 
             # Client sends {"type": "stop"} as text to end recording
             if msg.get("type") == "websocket.receive" and msg.get("text"):
@@ -112,6 +164,13 @@ async def ws_record(websocket: WebSocket):
                     data = json.loads(msg["text"])
                 except ValueError:
                     data = {}
+                if data.get("type") == "keep_recording":
+                    # Client confirmed they want to keep recording — touch session to reset timer
+                    session_svc.get_session(token, max_idle_seconds=get_settings().auto_lock_minutes * 60)
+                    last_session_check = time.monotonic()
+                    lock_warning_sent = False
+                    logger.info("[auto-lock] Recording: keep_recording confirmed, idle timer reset")
+                    continue
                 if data.get("type") == "stop":
                     # Flush remaining buffer
                     if len(audio_buffer) >= MIN_TRANSCRIBE_BYTES and not transcribing:

@@ -59,7 +59,7 @@ async function _captureFrame() {
     const fd = new FormData();
     fd.append('file', blob, 'frame.jpg');
     try {
-      const r = await fetch('/emotion/video/frame', { method: 'POST', body: fd });
+      const r = await fetch('/emotion/video/frame', { method: 'POST', body: fd, headers: { 'X-Background': '1' } });
       if (!r.ok) return;
       const data = await r.json();
       const em = data.emotion_label;

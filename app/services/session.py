@@ -96,6 +96,26 @@ def get_session(token: str, max_idle_seconds: float = 900) -> Optional[SessionDa
     return session
 
 
+def peek_session(token: str, max_idle_seconds: float = 900) -> Optional[SessionData]:
+    """
+    Validate token and return session data without updating last_activity.
+    Use for heartbeat/ping endpoints that should not reset the idle timer.
+    """
+    if _serializer is None:
+        return None
+    try:
+        session_id = _serializer.loads(token, max_age=86400)
+    except (BadSignature, SignatureExpired):
+        return None
+    session = _sessions.get(session_id)
+    if session is None:
+        return None
+    if session.is_expired(max_idle_seconds):
+        destroy_session(token)
+        return None
+    return session
+
+
 def destroy_session(token: str) -> None:
     """Destroy session and zero key bytes."""
     if _serializer is None:
@@ -111,6 +131,12 @@ def destroy_session(token: str) -> None:
 def destroy_all_sessions() -> None:
     for session_id in list(_sessions.keys()):
         _remove_session(session_id)
+
+
+def get_session_idle_times() -> list[tuple[str, float]]:
+    """Return [(session_id_prefix, idle_seconds)] for all active sessions."""
+    now = time.monotonic()
+    return [(sid[:8], now - s.last_activity) for sid, s in _sessions.items()]
 
 
 def sweep_expired_sessions(max_idle_seconds: float) -> int:

@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import platform
+import time
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.dependencies import require_unlocked
+from app.config import get_settings
+from app.dependencies import SESSION_COOKIE, require_unlocked
+from app.services import session as session_svc
 from app.services.key_store import browse_directory, detect_removable_drives
 from app.services.session import SessionData
 
@@ -90,10 +94,34 @@ async def make_directory(request: Request, body: MkdirRequest) -> JSONResponse:
 
 
 
-@router.get("/ping")
-async def ping(session: SessionData = Depends(require_unlocked)) -> JSONResponse:
-    """Heartbeat endpoint — returns 200 while session is valid, 401 when expired."""
+@router.post("/touch")
+async def touch(session: SessionData = Depends(require_unlocked)) -> JSONResponse:
+    """Explicitly reset the idle timer — used by the 'Keep recording' action."""
     return JSONResponse({"ok": True})
+
+
+@router.get("/ping")
+async def ping(
+    pqj_session: Optional[str] = Cookie(default=None, alias=SESSION_COOKIE),
+) -> JSONResponse:
+    """
+    Heartbeat — validates session WITHOUT touching last_activity so the idle
+    timer is not reset by the periodic ping. Returns idle/timeout info so the
+    client can show a warning before the session expires.
+    """
+    settings = get_settings()
+    max_idle = settings.auto_lock_minutes * 60
+    if not pqj_session:
+        raise HTTPException(status_code=401, detail="No session")
+    session = session_svc.peek_session(pqj_session, max_idle_seconds=max_idle)
+    if session is None:
+        raise HTTPException(status_code=401, detail="Session expired")
+    idle = time.monotonic() - session.last_activity
+    return JSONResponse({
+        "ok": True,
+        "idle_seconds": round(idle),
+        "timeout_seconds": int(max_idle),
+    })
 
 
 @router.get("/status")

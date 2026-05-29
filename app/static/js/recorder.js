@@ -9,6 +9,10 @@ let mediaStream = null;
 let workletNode = null;
 let isRecording = false;
 
+// Expose recording state and WS reference so layout.html session-expiry logic can use them
+Object.defineProperty(window, '_pqIsRecording', { get: () => isRecording });
+Object.defineProperty(window, '_pqWs', { get: () => ws });
+
 // Emotion window — collect VAD then request a rich LLM summary
 // Defaults (overridden from /api/status at recording start): 30s window, 20s min, 10 word min
 let _emotionWindowReadings = 60;  // readings × ~500ms = seconds (60 = 30s)
@@ -214,7 +218,7 @@ async function _fetchAndShowEngineStatus() {
   const statusRow = document.getElementById('engine-status');
   if (!statusRow) return;
   try {
-    const res = await fetch('/api/status');
+    const res = await fetch('/api/status', { headers: { 'X-Background': '1' } });
     const data = await res.json();
 
     const _badge = (id, label, active) => {
@@ -320,7 +324,7 @@ function handleServerMessage(msg) {
           fd.append('vad_d', avgD.toFixed(4));
           fd.append('face_emotion', faceEmotion);
           fd.append('transcript', transcriptSnap);
-          fetch('/emotion/live_summary', { method: 'POST', body: fd })
+          fetch('/emotion/live_summary', { method: 'POST', body: fd, headers: { 'X-Background': '1' } })
             .then(r => r.json())
             .then(data => {
               if (data.summary) {
@@ -344,7 +348,25 @@ function handleServerMessage(msg) {
     case 'stt_engine':
       document.getElementById('stt-badge').textContent = msg.engine;
       break;
+
+    case 'lock_warning':
+      // Server detected session is expired or about to expire during recording
+      if (typeof _showRecordingLockWarning === 'function') {
+        _showRecordingLockWarning(msg.seconds_remaining || 0);
+      }
+      break;
   }
+}
+
+// Called by layout.html when it needs to stop recording before locking
+async function forceStopAndLock() {
+  if (isRecording) await stopRecording();
+  // /lock is POST-only — submit a form rather than navigating
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/lock';
+  document.body.appendChild(form);
+  form.submit();
 }
 
 function setRecordingUI(active) {
